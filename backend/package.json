@@ -1,0 +1,21 @@
+{
+  "name": "dive-form-backend",
+  "version": "1.0.0",
+  "description": "Backend for DiveIndia form submission utility",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.2.1",
+    "express": "^4.21.2",
+    "nodemailer": "^7.0.5",
+    "pdf-lib": "^1.17.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

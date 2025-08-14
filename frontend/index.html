@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DIVEIndia Waiver Form</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; padding: 1em; }
+    input, select, canvas { width: 100%; margin: 10px 0; }
+    canvas { border: 1px solid #ccc; height: 100px; }
+  </style>
+</head>
+<body>
+  <h2>Diver Info</h2>
+  <form id="waiverForm">
+    <label>First Name</label><input name="firstName" required maxlength="80">
+	<label>Middle Name (optional)</label><input name="middleName" maxlength="80">
+	<label>Last Name</label><input name="lastName" required maxlength="80">
+    <label>Date of Birth</label><input type="date" name="dob" required>
+    <label>Email</label><input type="email" name="email" required>
+    <label>Phone</label><input name="phone" required>
+<label>Today's Date</label><input type="date" name="guestFillingDate" required>
+    <label>Dive Centers:</label><br>
+    <input type="checkbox" name="centers" value="Havelock"> Havelock<br>
+    <input type="checkbox" name="centers" value="Neil"> Neil<br>
+	
+	<div id="guardianBlock" style="display:none;">
+  <label>Parent/Guardian Name</label><input name="parentName">
+  <label>Guardian Signature</label>
+  <label>Parent/Guardian Date</label><input type="date" name="parentGuardianDate">
+  <canvas id="sigGuardian" style="border:1px solid #ccc;height:100px;"></canvas>
+  <button type="button" onclick="clearGuardian()">Clear Guardian Signature</button>
+</div>
+	
+    <label>Signature</label>
+    <canvas id="sigCanvas"></canvas>
+    <button type="button" onclick="clearSig()">Clear Signature</button>
+    <br><br><button type="submit">Submit</button>
+  </form>
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script>
+
+  // Responsive canvas sizing
+  function resizeCanvasTo(container, canvas, height=120) {
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const w = Math.floor(container.clientWidth);
+    canvas.width = w * ratio;
+    canvas.height = height * ratio;
+    canvas.style.width = w + "px";
+    canvas.style.height = height + "px";
+  }
+  function initSigPad(canvas) {
+    const container = canvas.parentElement;
+    resizeCanvasTo(container, canvas, 120);
+    const pad = new SignaturePad(canvas, { minWidth: 0.9, maxWidth: 2.5 });
+    window.addEventListener('resize', () => {
+      const data = pad.toData();
+      resizeCanvasTo(container, canvas, 120);
+      pad.clear();
+      pad.fromData(data);
+    });
+    return pad;
+  }
+
+  const guestCanvas = document.getElementById('sigCanvas');
+  const sigPad = initSigPad(guestCanvas);
+
+  const guardianCanvas = document.getElementById('sigGuardian');
+  let sigGuardian;
+  if (guardianCanvas) sigGuardian = initSigPad(guardianCanvas);
+
+  function clearSig(){ sigPad.clear(); }
+  function clearGuardian(){ if (sigGuardian) sigGuardian.clear(); }
+
+  // Show guardian block if < 18 (client-side hint; server re-checks)
+  const dobInput = document.querySelector('input[name="dob"]');
+  const guardianBlock = document.getElementById('guardianBlock');
+
+  // Default today's date
+  const todayISO = new Date().toISOString().slice(0,10);
+  const guestDateInput = document.querySelector('input[name="guestFillingDate"]');
+  if (guestDateInput && !guestDateInput.value) guestDateInput.value = todayISO;
+
+  dobInput.addEventListener('change', () => {
+    const dob = new Date(dobInput.value);
+    if (!isNaN(dob)) {
+      const now = new Date();
+      let age = now.getFullYear() - dob.getFullYear();
+      const m = now.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
+      guardianBlock.style.display = age < 18 ? '' : 'none';
+
+      const pgd = document.querySelector('input[name="parentGuardianDate"]');
+      if (guardianBlock.style.display !== 'none' && pgd && !pgd.value) pgd.value = todayISO;
+
+    }
+  });
+
+  document.getElementById('waiverForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+
+  // multi-select centers
+  const centers = Array.from(document.querySelectorAll('input[name="centers"]:checked')).map(i => i.value);
+
+  // assemble payload
+  const payload = Object.fromEntries(f.entries());
+  payload.centers = centers;
+
+  // build full name safely
+  const first = (payload.firstName || '').trim();
+  const middle = (payload.middleName || '').trim();
+  const last = (payload.lastName || '').trim();
+  payload.fullName = [first, middle, last].filter(Boolean).join(' ');
+
+  // dates
+  // normalize to ISO (backend formats as dd/MM/yyyy)
+  payload.guestFillingDate = payload.guestFillingDate || todayISO;
+  if (guardianBlock.style.display !== 'none') {
+    payload.parentGuardianDate = payload.parentGuardianDate || todayISO;
+  }
+
+  // signatures
+  payload.signature = sigPad.isEmpty() ? null : sigPad.toDataURL('image/png');
+  payload.guardianSignature = (sigGuardian && !sigGuardian.isEmpty()) ? sigGuardian.toDataURL('image/png') : null;
+
+  const res = await fetch('http://localhost:3000/submit', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  alert(await res.text());
+};
+</script>
+</body>
+</html>

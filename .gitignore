@@ -1,0 +1,15 @@
+# Node / backend
+node_modules/
+.env
+submissions/
+*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# build artifacts
+*.pdf
+*.zip
+dist/
+build/
