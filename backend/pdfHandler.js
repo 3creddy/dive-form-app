@@ -163,6 +163,7 @@ async function overlayWithData(srcBytes, filename, data, sigGuestPNG, sigGuardia
     });
   });
 
+  
   // Signatures, if coord keys exist for this file/page
   if (sigGuestPNG || sigGuardianPNG) {
     const pageIdxs = Object.keys(map).map(n => Number(n)).filter(n => !Number.isNaN(n));
@@ -172,18 +173,20 @@ async function overlayWithData(srcBytes, filename, data, sigGuestPNG, sigGuardia
       if (!page) continue;
 
       if (sigGuestPNG && cfg.sigGuest && cfg.sigGuest.x != null) {
-        try { await drawSignatureFitted(pdfDoc, page, sigGuestPNG, cfg.sigGuest); }
-        catch (e) { console.warn('Guest signature embed error:', e.message); }
-      });
-        } catch (e) { console.warn('Guest signature embed error:', e.message); }
+        try {
+          await drawSignatureFitted(pdfDoc, page, sigGuestPNG, cfg.sigGuest);
+        } catch (e) {
+          console.warn('Guest signature embed error:', e.message);
+        }
       }
 
       const isMinor = calcIsMinor(data.dob);
       if (isMinor && sigGuardianPNG && cfg.sigGuardian && cfg.sigGuardian.x != null) {
-        try { await drawSignatureFitted(pdfDoc, page, sigGuardianPNG, cfg.sigGuardian); }
-        catch (e) { console.warn('Guardian signature embed error:', e.message); }
-      });
-        } catch (e) { console.warn('Guardian signature embed error:', e.message); }
+        try {
+          await drawSignatureFitted(pdfDoc, page, sigGuardianPNG, cfg.sigGuardian);
+        } catch (e) {
+          console.warn('Guardian signature embed error:', e.message);
+        }
       }
     }
   }

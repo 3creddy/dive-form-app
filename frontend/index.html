@@ -61,6 +61,16 @@
     return pad;
   }
 
+  
+  function refreshGuardianPad() {
+    if (!sigGuardian) return;
+    const container = guardianCanvas.parentElement;
+    const data = sigGuardian.toData();
+    resizeCanvasTo(container, guardianCanvas, 120);
+    sigGuardian.clear();
+    if (data && data.length) sigGuardian.fromData(data);
+  }
+
   const guestCanvas = document.getElementById('sigCanvas');
   const sigPad = initSigPad(guestCanvas);
 
@@ -88,6 +98,7 @@
       const m = now.getMonth() - dob.getMonth();
       if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
       guardianBlock.style.display = age < 18 ? '' : 'none';
+      if (age < 18) { refreshGuardianPad(); }
 
       const pgd = document.querySelector('input[name="parentGuardianDate"]');
       if (guardianBlock.style.display !== 'none' && pgd && !pgd.value) pgd.value = todayISO;
@@ -111,6 +122,8 @@
   const middle = (payload.middleName || '').trim();
   const last = (payload.lastName || '').trim();
   payload.fullName = [first, middle, last].filter(Boolean).join(' ');
+  payload.name = payload.fullName; // legacy compatibility for email templates
+  payload.firstName = first;
 
   // dates
   // normalize to ISO (backend formats as dd/MM/yyyy)
