@@ -3,6 +3,7 @@ require('dotenv').config();
 
 const path = require('path');
 const fs   = require('fs');
+const os   = require('os'); // for LAN IP logging
 const express = require('express');
 const cors    = require('cors');
 const bodyParser = require('body-parser');
@@ -66,7 +67,7 @@ app.post('/submit', async (req, res) => {
     fs.writeFileSync(rawPath, JSON.stringify(data, null, 2));
 
     console.log(`🧩 Building packet for: ${centers.join(' & ') || 'Unknown'} ${testMode?'[TEST]':''}`);
-    const packets = await buildPacketBuffers(data); // tolerant to either {filename,bytes} or {label,buffer}
+    const packets = await buildPacketBuffers(data);
 
     // In test mode: save PDFs and return JSON with download URLs
     if (testMode || !sendPackets) {
@@ -105,4 +106,17 @@ app.post('/submit', async (req, res) => {
 app.use(express.static(FRONTEND_DIR));
 app.get('/', (_req,res)=>res.sendFile(path.join(FRONTEND_DIR,'index.html')));
 
-app.listen(PORT, ()=>console.log(`Server running on http://localhost:${PORT}`));
+// Listen on all interfaces (localhost + LAN)
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on:`);
+  console.log(`   • http://localhost:${PORT}`);
+
+  const nets = os.networkInterfaces();
+  Object.values(nets).forEach(ifaces => {
+    ifaces
+      .filter(i => i.family === 'IPv4' && !i.internal)
+      .forEach(i => {
+        console.log(`   • http://${i.address}:${PORT}`);
+      });
+  });
+});

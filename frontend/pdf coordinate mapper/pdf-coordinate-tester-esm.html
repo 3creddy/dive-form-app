@@ -1,0 +1,190 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PDF Coordinate Tester (ESM)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; }
+    #canvas { border: 1px solid #999; max-width: 100%; height: auto; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    label { font-weight: 600; }
+    input[type="text"], input[type="number"] { padding: 6px 8px; border: 1px solid #ccc; border-radius: 8px; width: 100%; }
+    button { padding: 8px 12px; border: 0; border-radius: 10px; cursor: pointer; }
+    button.primary { background: #1f6feb; color: white; }
+    button.ghost { background: #f3f4f6; }
+    .coords { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; }
+    .pill { display: inline-block; padding: 2px 8px; background: #eef2ff; color: #3730a3; border-radius: 999px; font-size: 12px; }
+    #msg { margin-top:8px; color:#b91c1c; font-weight:600; }
+  </style>
+</head>
+<body>
+  <h1>PDF Coordinate Tester (ESM) <span class="pill">click to get x,y</span></h1>
+  <p>Open over <strong>http://localhost</strong>. This version imports pdf.js as an ES module from unpkg.</p>
+  <div id="msg"></div>
+  <div class="row">
+    <div class="card">
+      <label>PDF file</label>
+      <input type="file" id="file" accept="application/pdf" />
+    </div>
+    <div class="card">
+      <label>Page</label>
+      <input type="number" id="page" value="1" min="1" step="1" />
+      <button id="render" class="primary" style="margin-top:8px;">Render Page</button>
+    </div>
+    <div class="card">
+      <label>Scale</label>
+      <input type="number" id="scale" value="1.5" min="0.1" step="0.1" />
+      <div style="margin-top:8px;">Increase scale for precision.</div>
+    </div>
+    <div class="card">
+      <label>Rect size (w × h)</label>
+      <div style="display:flex; gap:8px;">
+        <input type="number" id="rectW" value="120" step="1" />
+        <input type="number" id="rectH" value="18" step="1" />
+      </div>
+      <button id="clearRects" class="ghost" style="margin-top:8px;">Clear Rects</button>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <label>Click log & mapping helper</label>
+    <pre id="log" class="coords"></pre>
+    <button id="copy" class="primary">Copy JSON</button>
+  </div>
+
+  <script type="module">
+    import * as pdfjsLib from "https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.mjs";
+    // point worker to same CDN module file
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.mjs";
+
+    const fileInput = document.getElementById('file');
+    const pageInput = document.getElementById('page');
+    const scaleInput = document.getElementById('scale');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const logEl = document.getElementById('log');
+    const rectW = document.getElementById('rectW');
+    const rectH = document.getElementById('rectH');
+    const copyBtn = document.getElementById('copy');
+    const clearRectsBtn = document.getElementById('clearRects');
+    const msg = document.getElementById('msg');
+
+    let pdfDoc = null;
+    let pdfData = null;
+    let currentPage = 1;
+    let scale = parseFloat(scaleInput.value);
+    let viewPort = null;
+    const clicks = [];
+
+    const say = (e) => {
+      console.error(e);
+      msg.textContent = (e && e.message) ? e.message : String(e);
+    };
+
+    document.getElementById('render').addEventListener('click', async () => {
+      try {
+        if (!pdfData) return alert('Choose a PDF first.');
+        currentPage = parseInt(pageInput.value, 10) || 1;
+        scale = parseFloat(scaleInput.value) || 1.5;
+        await renderPage(currentPage, scale);
+      } catch (e) { say(e); }
+    });
+
+    fileInput.addEventListener('change', async (e) => {
+      try {
+        const file = e.target.files[0];
+        if (!file) return;
+        pdfData = await file.arrayBuffer();
+        pdfDoc = await pdfjsLib.getDocument({ data: pdfData }).promise;
+        pageInput.max = pdfDoc.numPages;
+        pageInput.value = 1;
+        await renderPage(1, scale);
+        msg.textContent = "";
+      } catch (e) { say(e); }
+    });
+
+    async function renderPage(pageNum, scale=1.5) {
+      if (!pdfDoc) throw new Error('PDF not loaded yet.');
+      const page = await pdfDoc.getPage(pageNum);
+      viewPort = page.getViewport({ scale });
+      canvas.width = Math.floor(viewPort.width);
+      canvas.height = Math.floor(viewPort.height);
+      const renderContext = { canvasContext: ctx, viewport: viewPort };
+      await page.render(renderContext).promise;
+      drawRects();
+    }
+
+    function viewToPdfCoords(viewX, viewY) {
+      const sx = viewPort.transform[0];
+      const sy = Math.abs(viewPort.transform[3]);
+      const pdfX = viewX / sx;
+      const pdfY = (viewPort.height - viewY) / sy;
+      return { x: +pdfX.toFixed(2), y: +pdfY.toFixed(2) };
+    }
+
+    canvas.addEventListener('click', (e) => {
+      try {
+        if (!viewPort) return;
+        const rect = canvas.getBoundingClientRect();
+        const viewX = e.clientX - rect.left;
+        const viewY = e.clientY - rect.top;
+        const { x, y } = viewToPdfCoords(viewX, viewY);
+        const w = parseFloat(rectW.value) || 120;
+        const h = parseFloat(rectH.value) || 18;
+        clicks.push({ page: currentPage, x, y, w, h, key: "REPLACE_ME" });
+        drawRects();
+        refreshLog();
+      } catch (e) { say(e); }
+    });
+
+    function drawRects() {
+      if (!viewPort) return;
+      const sx = viewPort.transform[0];
+      const sy = Math.abs(viewPort.transform[3]);
+      ctx.save();
+      clicks.forEach(c => {
+        if (c.page !== currentPage) return;
+        const vx = c.x * sx;
+        const vyTop = viewPort.height - c.y * sy;
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(vx, vyTop - c.h * sy, c.w * sx, c.h * sy);
+      });
+      ctx.restore();
+    }
+
+    function refreshLog() {
+      const sample = clicks.map(c => ({
+        page: c.page,
+        x: c.x, y: c.y, w: c.w, h: c.h, key: c.key
+      }));
+      const json = JSON.stringify(sample, null, 2);
+      logEl.textContent = json + "\n\n// Tip: Replace `key` with your coordMap key, and (x,y,w,h) as needed.";
+    }
+
+    copyBtn.addEventListener('click', async () => {
+      const text = logEl.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy JSON', 1500);
+      } catch (e) {
+        alert('Copy failed. Select the text and copy manually.');
+      }
+    });
+
+    clearRectsBtn.addEventListener('click', () => {
+      clicks.length = 0;
+      if (pdfDoc) renderPage(currentPage, scale).catch(say);
+      refreshLog();
+    });
+  </script>
+</body>
+</html>
