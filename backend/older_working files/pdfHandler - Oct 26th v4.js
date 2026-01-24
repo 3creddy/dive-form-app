@@ -1,9 +1,7 @@
 
-// backend/pdfHandler_final_patched.js
+// backend/pdfHandler_patched.js
 // Patched pdfHandler: supports multiple placement coords, templates, combined fields,
-// robust checkbox resolution including medical.boxes A..G array fallback,
-// and suppression logic: if main question (A..G mapping) is explicitly No and follow-up missing,
-// then neither Yes nor No is ticked.
+// and robust checkbox resolution including medical.boxes A..G array fallback.
 
 const fs = require('fs');
 const path = require('path');
@@ -190,7 +188,7 @@ async function overlayWithData(srcBytes, filename, data, sigGuestPNG, sigGuardia
       iterateCfgs(cfgOrArr, (cfg) => {
         if (!cfg || cfg.x == null || cfg.y == null) return;
 
-        // embedded checkbox handling (supports medical.boxes fallback + suppression)
+        // embedded checkbox handling (supports medical.boxes fallback)
         if (cfg.type && String(cfg.type).toLowerCase() === 'checkbox') {
           // explicit per-checkbox flag
           const explicit = getNested(data, key) !== undefined ? getNested(data, key) : (getNested(bag, key) !== undefined ? getNested(bag, key) : undefined);
@@ -211,7 +209,7 @@ async function overlayWithData(srcBytes, filename, data, sigGuestPNG, sigGuardia
             let baseVal = getNested(data, baseKey);
             if (baseVal === undefined) baseVal = getNested(bag, baseKey);
 
-            // BOXES ARRAY FALLBACK with suppression if main question = No
+            // boxes-array fallback
             if (baseVal === undefined) {
               try {
                 const parts = String(baseKey).split('.');
@@ -225,25 +223,8 @@ async function overlayWithData(srcBytes, filename, data, sigGuestPNG, sigGuardia
                     ? parts.slice(0, idxMedical + 1).concat(['boxes']).join('.')
                     : 'medical.boxes';
                   const boxesObj = getNested(data, boxesRoot) || getNested(bag, boxesRoot) || getNested(data, 'medical.boxes');
-
-                  // Map box letters to their main question numbers
-                  const boxToMainQ = { A: 1, B: 2, C: 4, D: 6, E: 7, F: 8, G: 9 };
-
-                  const arr = (boxesObj && typeof boxesObj === 'object') ? boxesObj[letter] : undefined;
-                  const followupHasValue = Array.isArray(arr) && arr.length >= num && (arr[num - 1] !== undefined && arr[num - 1] !== null && String(arr[num - 1]).trim() !== '');
-
-                  // Read main-question value (e.g. medical.q.q1) if present
-                  const mainQnum = boxToMainQ[letter];
-                  let mainQVal;
-                  if (mainQnum) {
-                    mainQVal = getNested(data, `medical.q.q${mainQnum}`);
-                    if (mainQVal === undefined) mainQVal = getNested(bag, `medical.q.q${mainQnum}`);
-                  }
-
-                  // If main question explicitly No and no followup provided -> do not set baseVal (leave undefined)
-                  if (mainQVal !== undefined && !truthy(mainQVal) && !followupHasValue) {
-                    baseVal = undefined;
-                  } else {
+                  if (boxesObj && typeof boxesObj === 'object') {
+                    const arr = boxesObj[letter];
                     if (Array.isArray(arr)) baseVal = arr[Math.max(0, num - 1)];
                   }
                 }
@@ -288,7 +269,7 @@ async function overlayWithData(srcBytes, filename, data, sigGuestPNG, sigGuardia
       });
     }
 
-    // checkboxes from checkboxByFile (with boxes-array fallback + suppression)
+    // checkboxes from checkboxByFile (with boxes-array fallback)
     const boxCfgs = cbox[idx] || {};
     for (const [key, cfgOrArr] of Object.entries(boxCfgs)) {
       iterateCfgs(cfgOrArr, (cfg) => {
@@ -315,7 +296,7 @@ async function overlayWithData(srcBytes, filename, data, sigGuestPNG, sigGuardia
           val = v;
         }
 
-        // BOXES ARRAY FALLBACK with suppression logic
+        // BOXES ARRAY FALLBACK
         if ((val === null || String(val).trim() === '') && key) {
           try {
             const parts = String(key).split('.');
@@ -331,22 +312,8 @@ async function overlayWithData(srcBytes, filename, data, sigGuestPNG, sigGuardia
               const boxesObj = (function(){
                 return getNested(data, boxesRoot) || getNested(bag, boxesRoot) || getNested(data, 'medical.boxes');
               })();
-
-              const boxToMainQ = { A: 1, B: 2, C: 4, D: 6, E: 7, F: 8, G: 9 };
-              const arr = (boxesObj && typeof boxesObj === 'object') ? boxesObj[letter] : undefined;
-              const followupHasValue = Array.isArray(arr) && arr.length >= num && (arr[num - 1] !== undefined && arr[num - 1] !== null && String(arr[num - 1]).trim() !== '');
-
-              const mainQnum = boxToMainQ[letter];
-              let mainQVal;
-              if (mainQnum) {
-                mainQVal = getNested(data, `medical.q.q${mainQnum}`);
-                if (mainQVal === undefined) mainQVal = getNested(bag, `medical.q.q${mainQnum}`);
-              }
-
-              if (mainQVal !== undefined && !truthy(mainQVal) && !followupHasValue) {
-                // leave val undefined -> no checkbox marked
-                val = undefined;
-              } else {
+              if (boxesObj && typeof boxesObj === 'object') {
+                const arr = boxesObj[letter];
                 if (Array.isArray(arr)) val = arr[Math.max(0, num - 1)];
               }
             }

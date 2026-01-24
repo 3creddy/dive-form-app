@@ -1,106 +1,108 @@
-// --- Load env early
+// Load env
 require('dotenv').config();
 
 const path = require('path');
-const fs = require('fs');
+const fs   = require('fs');
 const express = require('express');
-const cors = require('cors');
+const cors    = require('cors');
 const bodyParser = require('body-parser');
-
-// Helpers
 const { format } = require('date-fns');
-const { buildPacketBuffers } = require('./pdfHandler');   // if you’ve added it
-const { sendPackets } = require('./emailSender');          // if you’ve added it
-const { listAll } = require('./debugListFields');          // if you created it
-const { gridOverlayFor } = require('./debugGrid');         // if you created it
 
-// --- Create app BEFORE using app.get/app.use
-const app = express();
-const PORT = 3000;
+const { buildPacketBuffers } = require('./pdfHandler');
+let sendPackets = null;
+try { ({ sendPackets } = require('./emailSender')); } catch { /* optional */ }
 
-// --- Ensure submissions dir exists
-const SUB_DIR = path.resolve(__dirname, '../submissions');
+const app  = express();
+const PORT = process.env.PORT || 3000;
+
+const FRONTEND_DIR = path.resolve(__dirname, '../frontend');
+const SUB_DIR      = path.resolve(__dirname, '../submissions');
+const FORMS_DIR    = path.resolve(__dirname, '../forms');
 fs.mkdirSync(SUB_DIR, { recursive: true });
 
-// --- Middleware
 app.use(cors());
-app.use(bodyParser.json({ limit: '15mb' }));
+app.use(bodyParser.json({ limit: '20mb' }));
 
-// --- Routes
+// Startup banner
+try {
+  const files = fs.readdirSync(FORMS_DIR).filter(f => f.toLowerCase().endsWith('.pdf'));
+  console.log(`📁 Forms directory: ${FORMS_DIR}`);
+  console.log(`📄 Files found: ${files.join(', ') || '(none)'}`);
+} catch (e) {
+  console.warn(`⚠️ Could not read forms directory at ${FORMS_DIR}.`);
+}
 
-// Ping test (handy sanity check)
-app.get('/ping', (req, res) => res.send('pong'));
+// Health
+app.get('/healthz', (_req,res)=>res.json({ ok:true, port: PORT }));
 
-// Debug: list fields (will be empty for your flat PDFs; safe to keep)
-app.get('/debug/list-fields', async (req, res) => {
-  try {
-    const out = await listAll();
-    res.json(out);
-  } catch (e) {
-    console.error('List-fields error:', e);
-    res.status(500).json({ error: e.message });
-  }
+// Dev: list and fetch saved PDFs
+app.get('/dev/submissions', (_req,res) => {
+  const files = fs.readdirSync(SUB_DIR)
+    .filter(f => f.toLowerCase().endsWith('.pdf'))
+    .sort((a,b)=>fs.statSync(path.join(SUB_DIR,b)).mtimeMs - fs.statSync(path.join(SUB_DIR,a)).mtimeMs);
+  res.json({ files, base: '/dev/submissions' });
+});
+app.get('/dev/submissions/:file', (req,res) => {
+  const file = req.params.file;
+  const full = path.join(SUB_DIR, file);
+  if (!/^[\w.\-]+$/.test(file)) return res.status(400).send('Bad filename');
+  if (!fs.existsSync(full)) return res.status(404).send('Not found');
+  res.setHeader('Content-Type','application/pdf');
+  res.send(fs.readFileSync(full));
 });
 
-// Debug grid overlay: http://localhost:3000/debug/grid?file=TR-RDC-SCUBA_English-Metric.pdf
-app.get('/debug/grid', async (req, res) => {
-  try {
-    const file = req.query.file;
-    if (!file) return res.status(400).send('Missing ?file=xxx.pdf');
-    const bytes = await gridOverlayFor(file);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.send(Buffer.from(bytes));
-  } catch (e) {
-    console.error('Grid error:', e);
-    res.status(500).send(e.message);
-  }
-});
-
-// Main submit route (works with or without the PDF/email layer wired)
+// Submit route with tester mode
 app.post('/submit', async (req, res) => {
   try {
-    const data = req.body;
+    const mode = (req.query.mode || '').toString().toLowerCase(); // 'test' to enable tester
+    const testMode = mode === 'test' || req.headers['x-dev-mode'] === 'test';
 
-    // Normalize centers to array for consistency
-    const centers = Array.isArray(data.centers)
-      ? data.centers
-      : (data.center ? [data.center] : []);
+    const data = req.body || {};
+    const centers = Array.isArray(data.centers) ? data.centers : (data.center ? [data.center] : []);
     data.centers = centers;
 
-    // Always log raw submission
-    const rawName = `submission-${Date.now()}.json`;
-    fs.writeFileSync(path.join(SUB_DIR, rawName), JSON.stringify(data, null, 2));
+    // Always log raw JSON
+    const rawPath = path.join(SUB_DIR, `submission-${Date.now()}${testMode?'-TEST':''}.json`);
+    fs.writeFileSync(rawPath, JSON.stringify(data, null, 2));
 
-    // If you haven’t wired PDF/email yet, uncomment the next line to return early:
-    // return res.status(200).send('Form received! (PDF/email not wired yet)');
+    console.log(`🧩 Building packet for: ${centers.join(' & ') || 'Unknown'} ${testMode?'[TEST]':''}`);
+    const packets = await buildPacketBuffers(data); // tolerant to either {filename,bytes} or {label,buffer}
 
-    // Build PDFs and email (only if pdfHandler/emailSender are set up)
-    const packets = await buildPacketBuffers(data);
+    // In test mode: save PDFs and return JSON with download URLs
+    if (testMode || !sendPackets) {
+      const saved = [];
+      for (const p of packets) {
+        const name = (p.filename || p.label || 'packet');
+        const buf  = (p.bytes || p.buffer);
+        const safe = name.replace(/[^\w.-]+/g,'_');
+        const out  = path.join(SUB_DIR, `${Date.now()}-${safe}.pdf`);
+        fs.writeFileSync(out, buf);
+        saved.push(path.basename(out));
+      }
+      return res.status(200).json({
+        ok: true,
+        testMode: true,
+        message: 'Forms generated and saved locally.',
+        downloads: saved.map(f => `/dev/submissions/${f}`)
+      });
+    }
 
+    // Otherwise, email the packets
     const dateStr = format(new Date(), 'dd/MM/yyyy');
     const centerText = centers.length ? centers.join(' & ') : 'DIVEIndia';
-    const subject = `Dive Forms - ${data.name} - ${centerText} - ${dateStr}`;
-    const htmlBody = `
-      <p>Hello ${data.name},</p>
-      <p>Attached are your DIVEIndia form packets${centers.length>1?' for both centers':''}.<br/>
-      Thank you and see you underwater!</p>
-      <p>— DIVEIndia</p>
-    `;
+    const subject = `Dive Forms - ${data.name || 'Guest'} - ${centerText} - ${dateStr}`;
+    const htmlBody = `<p>Hello ${data.name || 'Guest'},</p><p>Attached are your DIVEIndia form packets.</p>`;
 
-    await sendPackets({
-      guestEmail: data.email,
-      subject,
-      htmlBody,
-      packets,
-      extraRecipients: [] // optional future cc’s
-    });
-
+    await sendPackets({ guestEmail: data.email, subject, htmlBody, packets, extraRecipients: [] });
     res.status(200).send('Forms generated and emailed!');
   } catch (err) {
     console.error('❌ Submit error:', err);
-    res.status(500).send('Server error processing forms');
+    res.status(500).send(err?.message || 'Server error processing forms');
   }
 });
 
-// --- Start server LAST
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+// Serve frontend
+app.use(express.static(FRONTEND_DIR));
+app.get('/', (_req,res)=>res.sendFile(path.join(FRONTEND_DIR,'index.html')));
+
+app.listen(PORT, ()=>console.log(`Server running on http://localhost:${PORT}`));

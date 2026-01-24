@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>DIVEIndia Forms — Waiver + Medical</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{ --fg:#121212; --muted:#666; --line:#dadada; --accent:#0a7; --bg:#fff; --soft:#f8f9fb; --err:#b00020;}
+    *{box-sizing:border-box}
+    body{margin:0;font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;color:var(--fg);background:var(--bg)}
+    header{position:sticky;top:0;z-index:3;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px}
+    main{padding:16px;max-width:950px;margin:0 auto}
+    h1{font-size:20px;margin:0}
+    fieldset{border:1px solid var(--line);border-radius:12px;padding:16px;margin:16px 0}
+    legend{padding:0 8px;font-weight:600}
+    label{display:block;margin:6px 0 4px}
+    input[type="text"],input[type="email"],input[type="date"],input[type="tel"],select,textarea{
+      width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff
+    }
+    small.note{color:var(--muted)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .stack{display:flex;flex-direction:column;gap:10px}
+    .checkbox-row{display:flex;align-items:center;gap:10px;margin:6px 0}
+    .pill{display:inline-block;background:#eef;border:1px solid #dde;border-radius:999px;padding:4px 10px;margin-left:8px;font-size:12px;color:#334}
+    .ok{color:#076b4f}.warn{color:#a42518}.neutral{color:#555}
+    .q{border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;background:#fff}
+    .grid-yn{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center}
+    .grid-yn .num{width:24px;text-align:center;font-weight:700}
+    .grid-yn .text{line-height:1.35}
+    .goto{color:var(--muted);font-size:12px}
+    .box{border-left:4px solid var(--accent);background:var(--soft);padding:12px;border-radius:8px;margin:8px 0 12px;display:none}
+    .box.show{display:block !important}
+    .item-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-top:1px dashed var(--line)}
+    .item-row:first-child{border-top:none}
+    .actions{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap}
+    canvas{border:1px dashed var(--line);border-radius:8px;height:110px;width:100%;background:#fff}
+    button{appearance:none;border:1px solid var(--line);background:#111;color:#fff;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
+    button.secondary{background:#fff;color:#111}
+    .sticky{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:12px 16px;z-index:2}
+    /* Validation UI */
+    .error-summary{border:1px solid var(--err);background:#ffeef1;color:#5f0011;padding:10px 12px;border-radius:10px;margin:0 0 12px 0;display:none}
+    .field-error{border-color:var(--err)!important; outline: none;}
+    .req{color:var(--err); margin-left:6px}
+  </style>
+</head>
+<body>
+<header>
+  <h1>DIVEIndia — Waivers & Medical <span id="status-pill" class="pill neutral">—</span></h1>
+</header>
+
+<main>
+  <form id="waiverForm" class="stack" novalidate>
+    <div id="errors" class="error-summary"></div>
+
+    <fieldset>
+      <legend>Participant</legend>
+      <div class="row">
+        <div><label>First Name <span class="req">*</span></label><input name="firstName" maxlength="80" required></div>
+        <div><label>Middle Name (optional)</label><input name="middleName" maxlength="80"></div>
+        <div><label>Last Name <span class="req">*</span></label><input name="lastName" maxlength="80" required></div>
+        <div><label>Date of Birth <span class="req">*</span></label><input type="date" name="dob" required></div>
+        <div><label>Email <span class="req">*</span></label><input type="email" name="email" required></div>
+        <div><label>Phone <span class="req">*</span></label><input name="phone" required></div>
+        <div><label>Today's Date <span class="req">*</span></label><input type="date" name="guestFillingDate" required></div>
+      </div>
+      <label>Dive Center(s) <span class="req">*</span> <small class="note">(tick at least one)</small></label>
+      <div class="checkbox-row"><input type="checkbox" name="centers" id="c-hav" value="Havelock"><label for="c-hav">Havelock</label></div>
+      <div class="checkbox-row"><input type="checkbox" name="centers" id="c-neil" value="Neil"><label for="c-neil">Neil</label></div>
+      <small class="note">Facility name on the MEDICAL PDF will reflect your selection.</small>
+    </fieldset>
+
+    <fieldset id="guardianBlock" style="display:none">
+      <legend>Youth (Under 18)</legend>
+      <div class="row">
+        <div><label>Parent/Guardian Name <span class="req">*</span></label><input name="parentName"></div>
+        <div><label>Parent/Guardian Date <span class="req">*</span></label><input type="date" name="parentGuardianDate"></div>
+      </div>
+      <label>Guardian Signature <span class="req">*</span></label>
+      <canvas id="sigGuardian"></canvas>
+      <div class="actions"><button class="secondary" type="button" id="clearGuardian">Clear Guardian Signature</button></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Participant Signature <span class="req">*</span></legend>
+      <canvas id="sigCanvas"></canvas>
+      <div class="actions"><button class="secondary" type="button" id="clearSig">Clear Signature</button></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Medical Questionnaire (Q1–Q10)</legend>
+      <small class="note">Answer honestly. “Go to box …” will reveal follow‑up questions. Items marked “*” can require physician approval.</small>
+      <div id="qList" class="stack"></div>
+    </fieldset>
+
+    <div class="sticky">
+      <div class="actions">
+        <button class="secondary" type="button" id="previewPayload">Preview JSON</button>
+        <button type="submit">Submit</button>
+        <span class="pill" id="med-flag">—</span>
+      </div>
+    </div>
+  </form>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script>
+(function(){
+  // ==== Signature helpers ====
+  function resizeCanvasTo(container, canvas, height=120) {
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const w = Math.floor(container.clientWidth || 600);
+    canvas.width = w * ratio; canvas.height = height * ratio;
+    canvas.style.width = w + 'px'; canvas.style.height = height + 'px';
+  }
+  function initSigPad(canvas) {
+    const container = canvas.parentElement;
+    resizeCanvasTo(container, canvas, 120);
+    const pad = new SignaturePad(canvas, {minWidth:0.9,maxWidth:2.4});
+    window.addEventListener('resize', () => {
+      const data = pad.toData();
+      resizeCanvasTo(container, canvas, 120);
+      pad.clear(); if (data && data.length) pad.fromData(data);
+    });
+    return pad;
+  }
+  const guestPad = initSigPad(document.getElementById('sigCanvas'));
+  const guardianCanvas = document.getElementById('sigGuardian');
+  let guardianPad = guardianCanvas ? initSigPad(guardianCanvas) : null;
+  document.getElementById('clearSig').onclick = () => guestPad.clear();
+  document.getElementById('clearGuardian').onclick = () => guardianPad && guardianPad.clear();
+
+  // ==== Youth toggle ====
+  const dobInput = document.querySelector('input[name="dob"]');
+  const guardianBlock = document.getElementById('guardianBlock');
+  const todayISO = new Date().toISOString().slice(0,10);
+  const guestDate = document.querySelector('input[name="guestFillingDate"]');
+  if (!guestDate.value) guestDate.value = todayISO;
+  dobInput.addEventListener('change', () => {
+    const dob = new Date(dobInput.value);
+    if (isNaN(dob)) return;
+    const now = new Date();
+    let age = now.getFullYear()-dob.getFullYear();
+    const m = now.getMonth()-dob.getMonth();
+    if (m<0 || (m===0 && now.getDate() < dob.getDate())) age--;
+    guardianBlock.style.display = age < 18 ? '' : 'none';
+    const pgd = document.querySelector('input[name="parentGuardianDate"]');
+    if (age < 18 && pgd && !pgd.value) pgd.value = todayISO;
+  });
+
+  // ===== MEDICAL Q1–Q10 =====
+  const questions = [
+    {num:1, text:'I have had problems with my lungs, breathing, heart and/or blood affecting my normal physical or mental performance.', box:'A'},
+    {num:2, text:'I am over 45 years of age.', box:'B'},
+    {num:3, text:'I struggle to perform moderate exercise (walk 1.6 km / 1 mile in 14 mins or swim 200 m without resting), OR I have been unable to participate in normal physical activity due to fitness/health within the past 12 months.', star:true},
+    {num:4, text:'I have had problems with my eyes, ears, or nasal passages/sinuses.', box:'C'},
+    {num:5, text:'I have had surgery within the last 12 months, OR I have ongoing problems related to past surgery.', star:true},
+    {num:6, text:'I have lost consciousness, had migraine headaches, seizures, stroke, significant head injury, or persistent neurologic injury/disease.', box:'D'},
+    {num:7, text:'I am currently undergoing (or required within the last 5 years) treatment for psychological problems, personality disorder, panic attacks, or an addiction to drugs or alcohol; or I have a learning/developmental disability.', box:'E'},
+    {num:8, text:'I have had back problems, hernia, ulcers, or diabetes.', box:'F'},
+    {num:9, text:'I have had stomach or intestine problems, including recent diarrhea.', box:'G'},
+    {num:10,text:'I am taking prescription medications (except birth control or anti‑malarial drugs other than mefloquine/Lariam).', star:true}
+  ];
+  const itemsByBox = {
+    A:[ "Chest/heart/valve surgery, implantable device (stent/pacemaker/neurostimulator), pneumothorax, and/or chronic lung disease.",
+        "Asthma, wheezing, severe allergies, hay fever or congested airways within the last 12 months that limit activity/exercise.",
+        "Heart problems (angina, chest pain on exertion, heart failure, immersion pulmonary edema, heart attack or stroke) or taking medication for any heart condition.",
+        "Recurrent bronchitis with current cough in last 12 months, or emphysema.",
+        "Symptoms affecting lungs/breathing/heart/blood in the last 30 days that impair performance." ],
+    B:[ "I currently smoke or inhale nicotine by other means.",
+        "I have high cholesterol.",
+        "I have high blood pressure.",
+        "Close relative died suddenly or of cardiac disease/stroke before 50, or family history of heart disease before 50." ],
+    C:[ "Sinus surgery (6 months).","Ear disease/surgery, hearing loss, or balance problems.","Recurrent sinusitis (12 months).","Eye surgery (3 months)." ],
+    D:[ "Head injury with loss of consciousness (5 years).","Persistent neurologic injury or disease.","Recurring migraines (12 months) / preventive meds.","Blackouts/fainting (5 years).","Epilepsy/seizures/convulsions or preventive meds." ],
+    E:[ "Behavioral/mental/psychological problems requiring treatment.","Major depression/suicidal ideation/panic/uncontrolled bipolar requiring treatment.","Diagnosed mental health or learning/developmental disorder needing care/accommodation.","Addiction to drugs or alcohol requiring treatment (5 years)." ],
+    F:[ "Recurrent back problems (6 months) limiting activity.","Back or spinal surgery (12 months).","Diabetes (drug/diet controlled) or gestational (12 months).","Uncorrected hernia limiting abilities.","Active/untreated ulcers/wounds, or ulcer surgery (6 months)." ],
+    G:[ "Ostomy without clearance to swim or physical activity.","Dehydration requiring medical intervention (7 days).","Active/untreated stomach/intestinal ulcers or ulcer surgery (6 months).","Frequent heartburn, regurgitation, or GERD.","Active/uncontrolled ulcerative colitis or Crohn’s.","Bariatric surgery (12 months)." ]
+  };
+
+  const qList = document.getElementById('qList');
+
+  function renderQuestion(q){
+    const wrap = document.createElement('div');
+    wrap.className = 'q';
+    wrap.innerHTML = `
+      <div class="grid-yn">
+        <div class="num">${q.num}</div>
+        <div class="text">${q.text} ${q.box?`<span class="goto">(Go to box ${q.box})</span>`:''} ${q.star?'<span class="goto">*</span>':''}</div>
+        <label><input type="radio" name="q${q.num}" value="Yes"> Yes</label>
+        <label><input type="radio" name="q${q.num}" value="No"> No</label>
+      </div>
+    `;
+    if(q.box){
+      const box = document.createElement('section');
+      box.className = 'box';
+      box.id = 'box'+q.box;
+      // build items as radio pairs with blank initial
+      const rows = (itemsByBox[q.box]||[]).map((text,i)=>{
+        const name = `box${q.box}_${i}`;
+        return `<div class="item-row">
+                  <div>${text}</div>
+                  <label><input type="radio" name="${name}" value="Yes"> Yes</label>
+                  <label><input type="radio" name="${name}" value="No"> No</label>
+                </div>`;
+      }).join('');
+      box.innerHTML = `<h5>BOX ${q.box}</h5>${rows}`;
+      wrap.appendChild(box);
+    }
+    // wiring
+    wrap.addEventListener('change', (e)=>{
+      if(/^q\d+$/.test(e.target.name)){
+        if(q.box){
+          const v = (document.querySelector('input[name="q'+q.num+'"]:checked')||{}).value;
+          const el = document.getElementById('box'+q.box);
+          if(el) el.classList.toggle('show', v==='Yes');
+        }
+        computeMedFlag();
+      }
+      if(/^box[A-G]_\d+$/.test(e.target.name)){
+        computeMedFlag();
+      }
+    });
+    return wrap;
+  }
+
+  questions.forEach(q => qList.appendChild(renderQuestion(q)));
+
+  // ==== Facility name helper ====
+  function computeFacilityName(centers){
+    if (!centers || centers.length===0) return null;
+    const first = centers[0];
+    if (first === 'Havelock') return 'DIVEIndia Havelock 791197';
+    if (first === 'Neil') return 'DIVEIndia Neil 791033';
+    return first;
+  }
+
+  // ==== Medical clearance pill ====
+  function computeMedFlag(){
+    // physician required if q3/q5/q10 == Yes, OR any box sub-item == Yes
+    const getYes = (n) => (document.querySelector('input[name="q'+n+'"]:checked')||{}).value === 'Yes';
+    const starredYes = getYes(3) || getYes(5) || getYes(10);
+    const anySubYes = Array.from(document.querySelectorAll('input[name^="box"][value="Yes"]:checked')).length > 0;
+    const pill = document.getElementById('med-flag');
+    if (starredYes || anySubYes){
+      pill.textContent = 'Physician evaluation required'; pill.className = 'pill warn';
+    } else {
+      // if nothing answered yet, show neutral dash
+      const anyAnswered = Array.from(document.querySelectorAll('input[type="radio"]')).some(r => r.checked);
+      pill.textContent = anyAnswered ? 'No medical clearance needed' : '—';
+      pill.className = 'pill ' + (anyAnswered ? 'ok' : 'neutral');
+    }
+    return (starredYes || anySubYes);
+  }
+
+  // ==== Validation helpers ====
+  function isVisible(el){ return !!(el && (el.offsetParent !== null)); }
+  function markError(el){ if (!el) return; el.classList.add('field-error'); }
+  function clearErrors(){ document.querySelectorAll('.field-error').forEach(e=>e.classList.remove('field-error')); }
+
+  function validateForm(){
+    clearErrors();
+    const errors = [];
+    const f = document.getElementById('waiverForm');
+
+    // Always-visible text inputs
+    ['firstName','lastName','dob','email','phone','guestFillingDate'].forEach(name=>{
+      const el = f.querySelector(`[name="${name}"]`);
+      if (!el.value){ errors.push(`Missing: ${name}`); markError(el); }
+    });
+
+    // At least one center
+    const centersChecked = Array.from(f.querySelectorAll('input[name="centers"]:checked')).length;
+    if (centersChecked === 0){ errors.push('Select at least one Dive Center'); }
+
+    // Participant signature required
+    if (guestPad.isEmpty()){ errors.push('Participant signature is required.'); }
+
+    // Youth requirements if block visible
+    if (isVisible(guardianBlock)){
+      const pn = f.querySelector('[name="parentName"]');
+      const pd = f.querySelector('[name="parentGuardianDate"]');
+      if (!pn.value){ errors.push('Parent/Guardian Name is required.'); markError(pn); }
+      if (!pd.value){ errors.push('Parent/Guardian Date is required.'); markError(pd); }
+      if (!guardianPad || guardianPad.isEmpty()){ errors.push('Guardian signature is required.'); }
+    }
+
+    // Q1–Q10 require a selection when visible (all are visible)
+    for (let i=1;i<=10;i++){
+      const sel = f.querySelector(`input[name="q${i}"]:checked`);
+      if (!sel){ errors.push(`Select Yes/No for Q${i}.`); }
+    }
+
+    // Boxes: for each visible box, every item must be answered (Yes/No)
+    ;['A','B','C','D','E','F','G'].forEach(k => {
+      const boxEl = document.getElementById('box'+k);
+      if (isVisible(boxEl)){
+        const rows = (itemsByBox[k]||[]);
+        rows.forEach((_,i)=>{
+          const name = `box${k}_${i}`;
+          const chosen = f.querySelector(`input[name="${name}"]:checked`);
+          if (!chosen){
+            errors.push(`Answer all items in Box ${k} (missing item ${i+1}).`);
+          }
+        });
+      }
+    });
+
+    const panel = document.getElementById('errors');
+    if (errors.length){
+      panel.innerHTML = '<strong>Please fix the following:</strong><ul><li>'+errors.join('</li><li>')+'</li></ul>';
+      panel.style.display = 'block';
+      panel.scrollIntoView({behavior:'smooth', block:'start'});
+      return false;
+    } else {
+      panel.style.display = 'none';
+      return true;
+    }
+  }
+
+  // ==== Submit & Preview ====
+  document.getElementById('previewPayload').onclick = () => {
+    const payload = buildPayload();
+    alert(JSON.stringify(payload, null, 2));
+  };
+  document.getElementById('waiverForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    const payload = buildPayload();
+    try {
+      const res = await fetch('/submit', { // same-origin to backend
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+      });
+      const text = await res.text();
+      alert(text);
+    } catch(err){
+      alert('POST failed: '+err.message);
+    }
+  });
+
+  function buildPayload(){
+    const f = new FormData(document.getElementById('waiverForm'));
+    // centers
+    const centers = Array.from(document.querySelectorAll('input[name="centers"]:checked')).map(el => el.value);
+    // name
+    const first = (f.get('firstName')||'').trim();
+    const middle = (f.get('middleName')||'').trim();
+    const last = (f.get('lastName')||'').trim();
+    const fullName = [first, middle, last].filter(Boolean).join(' ');
+    // medical
+    const medical = { q:{}, boxes:{}, needsMedicalClearance:false };
+    for (let i=1;i<=10;i++){
+      const sel = document.querySelector('input[name="q'+i+'"]:checked');
+      medical.q['q'+i] = sel ? sel.value : null; // null == blank (but UI prevents)
+    }
+    // boxes A–G
+    Object.keys(itemsByBox).forEach(boxKey => {
+      medical.boxes[boxKey] = [];
+      (itemsByBox[boxKey]||[]).forEach((_,i)=>{
+        const sel = document.querySelector('input[name="box'+boxKey+'_'+i+'"]:checked');
+        medical.boxes[boxKey].push(sel ? sel.value : null);
+      });
+    });
+    medical.needsMedicalClearance = computeMedFlag();
+
+    const payload = {
+      firstName:first, middleName:middle, lastName:last, fullName, name: fullName,
+      email: f.get('email'), phone: f.get('phone'), dob: f.get('dob'),
+      guestFillingDate: f.get('guestFillingDate') || new Date().toISOString().slice(0,10),
+      centers, facilityName: computeFacilityName(centers),
+      signature: guestPad.isEmpty() ? null : guestPad.toDataURL('image/png'),
+      guardianSignature: (guardianPad && !guardianPad.isEmpty()) ? guardianPad.toDataURL('image/png') : null,
+      parentName: f.get('parentName') || null,
+      parentGuardianDate: f.get('parentGuardianDate') || null,
+      medical
+    };
+    return payload;
+  }
+
+  // kick initial pill state
+  computeMedFlag();
+})();
+</script>
+
+<!-- Tester Mode Panel -->
+<div id="testerBar" style="position:sticky;top:0;background:#111;color:#eee;padding:8px 12px;display:flex;gap:16px;align-items:center;z-index:1000;border-bottom:1px solid #333">
+  <label><input type="checkbox" id="testerToggle"> Tester mode (skip required checks & email)</label>
+  <button type="button" id="openSavedBtn">Open latest saved PDFs</button>
+  <span id="testerMsg" style="margin-left:auto;opacity:.8"></span>
+</div>
+
+<script>
+(function(){
+  const toggle = document.getElementById('testerToggle');
+  const msg    = document.getElementById('testerMsg');
+  const openBtn= document.getElementById('openSavedBtn');
+  const form   = document.getElementById('waiverForm');
+
+  function setAllRequired(on){
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach(el => { if (on) el.setAttribute('required',''); else el.removeAttribute('required'); });
+  }
+
+  toggle.addEventListener('change', ()=>{
+    const on = toggle.checked;
+    setAllRequired(!on);
+    msg.textContent = on ? 'Tester mode: required checks OFF, email OFF' : '';
+  });
+
+  form.addEventListener('submit', async (e)=>{
+    if (!toggle.checked) return;            // normal flow if not testing
+    e.preventDefault();
+    const payload = buildPayload();         // your existing function
+
+    try {
+      const res = await fetch('/submit?mode=test', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(()=>null);
+      if (res.ok && data?.downloads){
+        alert('Saved locally:\n' + data.downloads.join('\n'));
+        if (data.downloads[0]) window.open(data.downloads[0], '_blank');   // open first PDF
+      } else {
+        alert('Tester submit error: ' + (data?.message || (await res.text())));
+      }
+    } catch (err){
+      alert('Tester network error: ' + err.message);
+    }
+  }, true);
+
+  openBtn.addEventListener('click', async ()=>{
+    const res = await fetch('/dev/submissions');
+    const data = await res.json();
+    if (data?.files?.length) window.open(`/dev/submissions/${data.files[0]}`, '_blank');
+    else alert('No saved PDFs yet.');
+  });
+})();
+</script>
+
+
+</body>
+</html>

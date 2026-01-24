@@ -397,7 +397,7 @@ async function overlayWithData(srcBytes, filename, data, sigGuestPNG, sigGuardia
             const sigG = await pdfDoc.embedPng(sigGuardianPNG);
             const targetW = sgCfg.width || 220;
             const targetH = sgCfg.height || (sigG.height * (targetW / sigG.width));
-            const scale = Math.min(targetW / sigG.width, targetH / sigG.height);
+            const scale = Math.min(targetW / sigG.width, targetH / sigG.width);
             const w = sigG.width * scale;
             const h = sigG.height * scale;
             page.drawImage(sigG, { x: sgCfg.x, y: sgCfg.y, width: w, height: h });
