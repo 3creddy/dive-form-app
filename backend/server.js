@@ -9,6 +9,8 @@ const cors    = require('cors');
 const bodyParser = require('body-parser');
 const { format } = require('date-fns');
 
+const { createSubmission } = require('./services/submissionService');
+
 const { buildPacketBuffers } = require('./pdfHandler');
 let sendPackets = null;
 try { ({ sendPackets } = require('./emailSender')); } catch { /* optional */ }
@@ -65,6 +67,20 @@ app.post('/submit', async (req, res) => {
     // Always log raw JSON
     const rawPath = path.join(SUB_DIR, `submission-${Date.now()}${testMode?'-TEST':''}.json`);
     fs.writeFileSync(rawPath, JSON.stringify(data, null, 2));
+	
+	// Attach request metadata for audit/debug
+data._userAgent = req.headers['user-agent'] || null;
+
+// Save submission to Postgres
+let submissionId;
+try {
+  submissionId = await createSubmission(data);
+  console.log('📝 Submission saved to Postgres with id:', submissionId);
+} catch (dbErr) {
+  console.error('❌ Failed to save submission to Postgres:', dbErr);
+  return res.status(500).send('Failed to save submission');
+}
+
 
     console.log(`🧩 Building packet for: ${centers.join(' & ') || 'Unknown'} ${testMode?'[TEST]':''}`);
     const packets = await buildPacketBuffers(data);
