@@ -33,12 +33,27 @@
     .item-row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:8px 0;border-top:1px dashed var(--line)}
     .item-row:first-child{border-top:none}
     .actions{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap}
-    .staff-bar{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:10px 12px}
-    .staff-bar a{color:#111;font-weight:600}
-    canvas{border:1px dashed var(--line);border-radius:8px;height:110px;width:100%;background:#fff}
+    .signature-wrap{width:100%;height:130px;border:1px dashed var(--line);border-radius:8px;background:#fff;overflow:hidden;touch-action:none}
+    canvas.signature-pad{display:block;width:100%;height:100%;background:#fff;touch-action:none}
+    body.signing{overflow:hidden}
     button{appearance:none;border:1px solid var(--line);background:#111;color:#fff;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
     button.secondary{background:#fff;color:#111}
     .sticky{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:12px 16px;z-index:2}
+    .busy-overlay{position:fixed;inset:0;background:rgba(255,255,255,.82);z-index:20;display:none;align-items:center;justify-content:center;text-align:center}
+    .busy-overlay.show{display:flex}
+    .busy-box{border:1px solid var(--line);background:#fff;border-radius:10px;padding:18px 22px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+    .spinner{width:34px;height:34px;border:4px solid #d7d7d7;border-top-color:#111;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px}
+    .success-mark,.error-mark{width:42px;height:42px;border-radius:50%;margin:0 auto 10px;display:none;align-items:center;justify-content:center;font-size:26px;font-weight:800}
+    .success-mark{background:#e7f8ef;color:#087443;border:2px solid #0f9f5a}
+    .error-mark{background:#fff0f0;color:#a42518;border:2px solid #d2453d}
+    .busy-overlay.done .spinner{display:none}
+    .busy-overlay.done .success-mark{display:flex}
+    .busy-overlay.error .spinner{display:none}
+    .busy-overlay.error .error-mark{display:flex}
+    .busy-message{max-width:340px;color:var(--muted);margin-top:4px}
+    .busy-ok{display:none;margin:14px auto 0}
+    .busy-overlay.done .busy-ok,.busy-overlay.error .busy-ok{display:block}
+    @keyframes spin{to{transform:rotate(360deg)}}
     /* Validation UI */
     .error-summary{border:1px solid var(--err);background:#ffeef1;color:#5f0011;padding:10px 12px;border-radius:10px;margin:0 0 12px 0;display:none}
     .field-error{border-color:var(--err)!important; outline: none;}
@@ -54,10 +69,7 @@
   <form id="waiverForm" class="stack" novalidate>
     <div id="errors" class="error-summary"></div>
 
-    <div class="staff-bar">
-      <small id="staff-config-summary">Using default course setup.</small>
-      <a href="/admin">Admin setup</a>
-    </div>
+    <small id="staff-config-summary" hidden></small>
     <input type="hidden" name="diverType" id="diverType" value="course_guest">
     <input type="hidden" name="activityType" id="activityType" value="course">
     <div id="formMatrix" hidden>
@@ -92,13 +104,13 @@
         <div><label>Parent/Guardian Date <span class="req">*</span></label><input type="date" name="parentGuardianDate"></div>
       </div>
       <label>Guardian Signature <span class="req">*</span></label>
-      <canvas id="sigGuardian"></canvas>
+      <div class="signature-wrap"><canvas class="signature-pad" id="sigGuardian"></canvas></div>
       <div class="actions"><button class="secondary" type="button" id="clearGuardian">Clear Guardian Signature</button></div>
     </fieldset>
 
     <fieldset>
       <legend>Participant Signature <span class="req">*</span></legend>
-      <canvas id="sigCanvas"></canvas>
+      <div class="signature-wrap"><canvas class="signature-pad" id="sigCanvas"></canvas></div>
       <div class="actions"><button class="secondary" type="button" id="clearSig">Clear Signature</button></div>
     </fieldset>
 
@@ -110,7 +122,6 @@
 
     <div class="sticky">
       <div class="actions">
-        <button class="secondary" type="button" id="previewPayload">Preview JSON</button>
         <button type="submit">Submit</button>
         <span class="pill" id="med-flag">—</span>
       </div>
@@ -118,25 +129,54 @@
   </form>
 </main>
 
+<div class="busy-overlay" id="busyOverlay" aria-live="polite" aria-busy="true">
+  <div class="busy-box">
+    <div class="spinner"></div>
+    <div class="success-mark">✓</div>
+    <div class="error-mark">!</div>
+    <strong id="busyTitle">Submitting forms...</strong>
+    <div class="busy-message" id="busyMessage">Generating PDFs and sending email.</div>
+    <button type="button" class="busy-ok" id="busyOk">OK</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script>
 (function(){
   // ==== Signature helpers ====
-  function resizeCanvasTo(container, canvas, height=120) {
+  function resizeCanvasTo(container, canvas) {
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    const w = Math.floor(container.clientWidth || 600);
-    canvas.width = w * ratio; canvas.height = height * ratio;
-    canvas.style.width = w + 'px'; canvas.style.height = height + 'px';
+    const rect = container.getBoundingClientRect();
+    const w = Math.max(280, Math.floor(rect.width || container.clientWidth || 600));
+    const h = Math.max(120, Math.floor(rect.height || container.clientHeight || 130));
+    canvas.width = Math.floor(w * ratio);
+    canvas.height = Math.floor(h * ratio);
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   }
   function initSigPad(canvas) {
     const container = canvas.parentElement;
-    resizeCanvasTo(container, canvas, 120);
+    resizeCanvasTo(container, canvas);
     const pad = new SignaturePad(canvas, {minWidth:0.9,maxWidth:2.4});
-    window.addEventListener('resize', () => {
+    const resize = () => {
       const data = pad.toData();
-      resizeCanvasTo(container, canvas, 120);
-      pad.clear(); if (data && data.length) pad.fromData(data);
-    });
+      resizeCanvasTo(container, canvas);
+      pad.clear();
+      if (data && data.length) pad.fromData(data);
+    };
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', () => setTimeout(resize, 250));
+    if (window.ResizeObserver) {
+      const observer = new ResizeObserver(() => {
+        if (container.offsetParent !== null) resize();
+      });
+      observer.observe(container);
+    }
+    canvas.addEventListener('pointerdown', () => document.body.classList.add('signing'));
+    window.addEventListener('pointerup', () => document.body.classList.remove('signing'));
+    window.addEventListener('pointercancel', () => document.body.classList.remove('signing'));
     return pad;
   }
   const guestPad = initSigPad(document.getElementById('sigCanvas'));
@@ -242,6 +282,12 @@
     guardianBlock.style.display = isMinor ? '' : 'none';
     const pgd = document.querySelector('input[name="parentGuardianDate"]');
     if (isMinor && pgd && !pgd.value) pgd.value = todayISO;
+    if (isMinor && guardianPad) setTimeout(() => {
+      const data = guardianPad.toData();
+      resizeCanvasTo(guardianCanvas.parentElement, guardianCanvas);
+      guardianPad.clear();
+      if (data && data.length) guardianPad.fromData(data);
+    }, 0);
   }
 
   function updateYouthOutputAvailability(){
@@ -450,23 +496,43 @@
     }
   }
 
+  function setFormDisabled(isDisabled){
+    const form = document.getElementById('waiverForm');
+    Array.from(form.elements).forEach(el => { el.disabled = isDisabled; });
+  }
+
+  function setBusy(isBusy){
+    const overlay = document.getElementById('busyOverlay');
+    overlay.className = 'busy-overlay' + (isBusy ? ' show' : '');
+    document.getElementById('busyTitle').textContent = 'Submitting forms...';
+    document.getElementById('busyMessage').textContent = 'Generating PDFs and sending email.';
+    setFormDisabled(isBusy);
+  }
+
+  function showSubmitResult(ok, message){
+    const overlay = document.getElementById('busyOverlay');
+    overlay.className = 'busy-overlay show ' + (ok ? 'done' : 'error');
+    document.getElementById('busyTitle').textContent = ok ? 'Forms submitted' : 'Submission failed';
+    document.getElementById('busyMessage').textContent = message;
+    setFormDisabled(false);
+  }
+
+  document.getElementById('busyOk').addEventListener('click', () => setBusy(false));
+
   // ==== Submit & Preview ====
-  document.getElementById('previewPayload').onclick = () => {
-    const payload = buildPayload();
-    alert(JSON.stringify(payload, null, 2));
-  };
   document.getElementById('waiverForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
     const payload = buildPayload();
+    setBusy(true);
     try {
       const res = await fetch('/submit', { // same-origin to backend
         method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
       });
       const text = await res.text();
-      alert(text);
+      showSubmitResult(res.ok, text || (res.ok ? 'Forms generated and emailed.' : 'Server returned an error.'));
     } catch(err){
-      alert('POST failed: '+err.message);
+      showSubmitResult(false, 'POST failed: '+err.message);
     }
   });
 

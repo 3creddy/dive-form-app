@@ -8,6 +8,7 @@ const express = require('express');
 const cors    = require('cors');
 const bodyParser = require('body-parser');
 const { format } = require('date-fns');
+const QRCode = require('qrcode');
 
 const {
   createSubmission,
@@ -63,6 +64,57 @@ function isEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 
+function getLanAddresses() {
+  const nets = os.networkInterfaces();
+  const addresses = [];
+  Object.values(nets).forEach(ifaces => {
+    ifaces
+      .filter(i => i.family === 'IPv4' && !i.internal)
+      .forEach(i => addresses.push(i.address));
+  });
+  return addresses;
+}
+
+function baseUrlFor(host) {
+  return `http://${host}:${PORT}`;
+}
+
+function urlSet(base) {
+  return {
+    base,
+    guestUrl: `${base}/`,
+    adminUrl: `${base}/admin`
+  };
+}
+
+async function checkPublicUrl(publicBase) {
+  if (!publicBase) return { status: 'not_configured', reachable: false };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Number(process.env.PUBLIC_TUNNEL_CHECK_TIMEOUT_MS || 3500));
+  try {
+    const res = await fetch(`${publicBase}/healthz`, {
+      method: 'GET',
+      signal: controller.signal
+    });
+    return {
+      status: res.ok ? 'reachable' : 'error',
+      reachable: res.ok,
+      httpStatus: res.status,
+      checkedUrl: `${publicBase}/healthz`,
+      message: res.ok ? 'Public URL reached this server health check.' : `Health check returned HTTP ${res.status}.`
+    };
+  } catch (err) {
+    return {
+      status: 'error',
+      reachable: false,
+      checkedUrl: `${publicBase}/healthz`,
+      message: err.name === 'AbortError' ? 'Public URL check timed out.' : err.message
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // Startup banner
 try {
   const files = fs.readdirSync(FORMS_DIR).filter(f => f.toLowerCase().endsWith('.pdf'));
@@ -74,6 +126,42 @@ try {
 
 // Health
 app.get('/healthz', (_req,res)=>res.json({ ok:true, port: PORT }));
+
+app.get('/admin/api/launch-info', requireAdmin, async (_req, res) => {
+  const publicBase = (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+  const publicCheck = await checkPublicUrl(publicBase);
+  res.json({
+    ok: true,
+    port: PORT,
+    local: urlSet(baseUrlFor('localhost')),
+    lan: getLanAddresses().map(ip => ({ ip, ...urlSet(baseUrlFor(ip)) })),
+    internet: {
+      configured: !!publicBase,
+      ...(publicBase ? urlSet(publicBase) : {}),
+      provider: process.env.PUBLIC_TUNNEL_PROVIDER || null,
+      ...publicCheck,
+      note: publicBase ? publicCheck.message : 'Not configured. Use local network as fallback.'
+    }
+  });
+});
+
+app.get('/admin/api/qr', requireAdmin, async (req, res) => {
+  try {
+    const data = String(req.query.data || '').trim();
+    if (!data) return res.status(400).send('Missing QR data');
+    const svg = await QRCode.toString(data, {
+      type: 'svg',
+      margin: 1,
+      width: 220,
+      errorCorrectionLevel: 'M'
+    });
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.send(svg);
+  } catch (err) {
+    console.error('QR generation error:', err);
+    res.status(500).send('Failed to generate QR');
+  }
+});
 
 // Dev: list and fetch saved PDFs
 app.get('/dev/submissions', (_req,res) => {

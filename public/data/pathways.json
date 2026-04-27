@@ -1,0 +1,181 @@
+{
+  "pathways": [
+    {
+      "id": "xr",
+      "title": "Extended Range (XR)",
+      "status": "planned",
+      "summary": "Future student pathway for Extended Range paperwork.",
+      "workflow": "extended_range_student",
+      "activityType": "xr_course",
+      "audience": "XR students",
+      "forms": [
+        {
+          "key": "medical",
+          "label": "Medical declaration",
+          "status": "mapped",
+          "note": "Existing medical PDF applies unless XR-specific medical requirements are identified."
+        },
+        {
+          "key": "xrWaiver",
+          "label": "XR waiver",
+          "status": "missing",
+          "note": "Source PDF not loaded or mapped yet."
+        },
+        {
+          "key": "xrRdc",
+          "label": "XR RDC",
+          "status": "missing",
+          "note": "Source PDF not loaded or mapped yet."
+        }
+      ],
+      "rules": [
+        "Decide whether XR uses the regular boat waiver when boat diving.",
+        "Decide whether regular youth waiver addendum applies to minors or if XR has a separate minor addendum.",
+        "Decide whether XR outputs are per-center or generated once."
+      ],
+      "questions": [
+        "Are XR waiver and XR RDC sufficient?",
+        "Are there equipment, gas, depth, instructor, or expedition-specific forms?",
+        "Do XR forms vary by agency or instructor?"
+      ]
+    },
+    {
+      "id": "freedive_fun",
+      "title": "Freediving fun divers",
+      "status": "planned",
+      "summary": "Future certified freediver / non-student flow.",
+      "workflow": "freediving_fun_diver",
+      "activityType": "freedive_fun",
+      "audience": "Certified freediving guests",
+      "forms": [
+        {
+          "key": "freediveMedical",
+          "label": "Freediving medical / health declaration",
+          "status": "unknown",
+          "note": "Required form set not finalized."
+        },
+        {
+          "key": "freediveWaiver",
+          "label": "Freediving liability waiver",
+          "status": "unknown",
+          "note": "Source PDF not loaded or mapped yet."
+        }
+      ],
+      "rules": [
+        "Decide whether certified freedivers use scuba medical, freediving medical, or a separate health declaration.",
+        "Decide whether boat waiver applies when a freediving activity uses a boat.",
+        "Decide whether forms are per-center."
+      ],
+      "questions": [
+        "Which forms are required by SSI/DIVEIndia for certified freediving guests?",
+        "Does depth, pool/open-water location, or boat use change the output set?",
+        "What minor/guardian addendum applies?"
+      ]
+    },
+    {
+      "id": "freedive_student",
+      "title": "Freediving students",
+      "status": "planned",
+      "summary": "Future student flow for freediving courses.",
+      "workflow": "freediving_student",
+      "activityType": "freedive_course",
+      "audience": "Freediving students",
+      "forms": [
+        {
+          "key": "freediveMedical",
+          "label": "Freediving medical / health declaration",
+          "status": "unknown",
+          "note": "Required form set not finalized."
+        },
+        {
+          "key": "freediveStudentWaiver",
+          "label": "Freediving student waiver",
+          "status": "unknown",
+          "note": "Source PDF not loaded or mapped yet."
+        },
+        {
+          "key": "freediveRdc",
+          "label": "Freediving course code / release",
+          "status": "unknown",
+          "note": "Need to confirm equivalent of RDC for this pathway."
+        }
+      ],
+      "rules": [
+        "Decide whether freediving students use SSI paperwork, DIVEIndia paperwork, or both.",
+        "Decide whether a regular youth waiver addendum applies to minor students.",
+        "Decide whether outputs are course-specific, center-specific, or both."
+      ],
+      "questions": [
+        "Which forms are required for SSI freediving students?",
+        "Are freelance/non-DIVEIndia instructor cases different?",
+        "Are there level-specific forms?"
+      ]
+    },
+    {
+      "id": "snorkel_fun",
+      "title": "Snorkeling fun divers",
+      "status": "planned",
+      "summary": "Future snorkeling guest flow.",
+      "workflow": "snorkeling_guest",
+      "activityType": "snorkel_fun",
+      "audience": "Snorkeling guests",
+      "forms": [
+        {
+          "key": "snorkelHealth",
+          "label": "Snorkeling health declaration",
+          "status": "unknown",
+          "note": "Need to decide if scuba medical is excessive for snorkeling."
+        },
+        {
+          "key": "snorkelWaiver",
+          "label": "Snorkeling liability waiver",
+          "status": "unknown",
+          "note": "Source PDF not loaded or mapped yet."
+        }
+      ],
+      "rules": [
+        "Decide whether snorkeling guests need boat waiver when boat-based.",
+        "Decide whether snorkeling uses the current liability waiver or a lighter document.",
+        "Decide whether medical Q1-Q10 is required or a short health check is enough."
+      ],
+      "questions": [
+        "What is the minimum legally/operationally acceptable health declaration?",
+        "Does snorkeling with boat travel require the same boat waiver?",
+        "How should minors be handled?"
+      ]
+    },
+    {
+      "id": "snorkel_student",
+      "title": "Snorkeling students",
+      "status": "planned",
+      "summary": "Future instructional snorkeling flow.",
+      "workflow": "snorkeling_student",
+      "activityType": "snorkel_course",
+      "audience": "Snorkeling students",
+      "forms": [
+        {
+          "key": "snorkelStudentHealth",
+          "label": "Snorkeling student health declaration",
+          "status": "unknown",
+          "note": "Required form set not finalized."
+        },
+        {
+          "key": "snorkelStudentWaiver",
+          "label": "Snorkeling student waiver",
+          "status": "unknown",
+          "note": "Source PDF not loaded or mapped yet."
+        }
+      ],
+      "rules": [
+        "Decide whether instructional snorkeling has a course-code equivalent to RDC.",
+        "Decide whether boat waiver applies.",
+        "Decide whether minor guardian/youth addendum rules mirror scuba."
+      ],
+      "questions": [
+        "What forms are required for instructed snorkeling?",
+        "Is there an SSI snorkel-specific form set?",
+        "Are fun and student snorkeling forms materially different?"
+      ]
+    }
+  ]
+}

@@ -38,9 +38,11 @@ Backend must enforce these defaults from `activityType`/`diverType` as a safety 
 The staff-facing setup page is `frontend/admin.html`, served at `/admin` and `/admin.html`.
 
 - It chooses diver type, activity type, and desired PDF outputs.
+- It defaults to a Launch tab that shows server status links, LAN/public QR codes, and tunnel status.
 - It includes a Roadmap tab that mounts the vanilla JS kanban renderer.
 - It links to the existing PDF coordinate mapper at `/pdf%20coordinate%20mapper/pdf-coordinate-tester-lite.html`.
 - It shows disabled/planned placeholders for XR, freediving, and snorkeling pathways until source PDFs are loaded and mapped.
+- Planned pathway cards are data-driven from `public/data/pathways.json`. Clicking a pathway opens a development workspace with forms, rules, questions, local readiness checklist, notes, mapper link, and a "ready to implement" marker.
 - It includes a Submissions tab for browsing DB submissions, regenerating filled PDFs, downloading regenerated files, and emailing regenerated PDFs to a specified address.
 - It stores setup in browser `localStorage` under `diveFormAdminConfig`.
 - The guest-facing form reads that config quietly.
@@ -103,6 +105,18 @@ Admin regeneration flow:
 
 New submissions store `metadata.fullPayload` so future regeneration can use the original form payload. Older rows are reconstructed from DB columns, `medical_json`, `signatures_json`, and metadata when possible.
 
+## Launch Flow
+
+Windows quick start is `Start Dive Forms.bat` in the repo root. It opens a terminal running `backend/server.js`, waits briefly, then opens `http://localhost:3000/admin`.
+
+Admin Launch tab uses:
+
+- `/admin/api/launch-info` for localhost, LAN, and optional public URL data.
+- `/admin/api/qr?data=...` for offline QR SVG generation.
+- `PUBLIC_BASE_URL`, `PUBLIC_TUNNEL_PROVIDER`, and `PUBLIC_TUNNEL_CHECK_TIMEOUT_MS` env vars to show internet/tunnel status.
+
+Local network guest QR should be used by phones on the same WiFi. `localhost` is only useful on the server computer. Public/internet access is not automatic yet; Cloudflare Tunnel, ngrok, or Tailscale Funnel still needs to be chosen and configured. If `PUBLIC_BASE_URL` is set, the backend checks `${PUBLIC_BASE_URL}/healthz` and the Launch tab shows reachable/error status without affecting LAN fallback.
+
 ## Non-Obvious Design Decisions
 
 - PDF filling uses manual x/y coordinate overlays in `backend/utils/coordMap.js`, not AcroForm fields.
@@ -130,3 +144,9 @@ Added the roadmap system: `ROADMAP.md`, `public/data/roadmap.json`, and `public/
 Added admin placeholders for future XR, freediving, and snorkeling pathways plus a link to the PDF coordinate mapper. Roadmap updated with extensible form catalog and PDF intake/mapping workflow tasks.
 
 Added admin submission browser and regeneration actions. Staff can search DB submissions, regenerate PDFs for a selected submission, download admin-protected regenerated files, or email regenerated PDFs to a specified address.
+
+Added a pathway development workspace backed by `public/data/pathways.json`. Future pathway readiness state and notes are stored locally in browser `localStorage` under `diveFormPathwayProgress`; this is planning scaffolding only and does not enable unmapped forms in the guest workflow.
+
+Added one-click Windows launcher and admin Launch tab with local/LAN QR codes plus a placeholder for future public tunnel URL. Runtime QR generation uses the backend `qrcode` dependency.
+
+Added public URL readiness check for the Launch tab. A configured public URL is checked against `/healthz`, and the UI reports reachable, configured-but-not-reachable, or not configured.

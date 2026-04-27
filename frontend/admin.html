@@ -22,10 +22,20 @@
     .choice small{display:block;color:var(--muted);margin-top:4px}
     .tool-row{display:flex;gap:12px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:8px;background:var(--soft);padding:12px;margin-top:10px}
     .placeholder-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px}
-    .placeholder-card{border:1px dashed var(--line);border-radius:8px;background:#fafafa;padding:12px;color:#333}
+    .placeholder-card{border:1px dashed var(--line);border-radius:8px;background:#fafafa;padding:12px;color:#333;text-align:left;cursor:pointer}
+    .placeholder-card.active{border-style:solid;border-color:#111;background:#f1f8f5}
     .placeholder-card h3{font-size:15px;margin:0 0 8px}
     .placeholder-card ul{margin:8px 0 0;padding-left:18px;color:var(--muted)}
     .badge{display:inline-block;border:1px solid #e8d391;background:#fff8d7;color:#7a5a00;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:700}
+    .pathway-workspace{display:grid;grid-template-columns:minmax(240px,1fr) minmax(320px,1.2fr);gap:12px;margin-top:12px}
+    .pathway-detail{border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px;min-height:320px}
+    .pathway-detail h3{margin:0 0 8px}
+    .status-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+    .status-row{border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--soft)}
+    .status-row strong{display:block}
+    .checklist{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+    .checklist label{border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;margin:0}
+    textarea.notes{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit}
     .admin-list{display:grid;grid-template-columns:minmax(280px,1fr) minmax(320px,1fr);gap:12px}
     .toolbar{display:flex;gap:8px;align-items:center;margin:0 0 10px}
     .toolbar input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit}
@@ -40,7 +50,18 @@
     .detail-grid dd{margin:0}
     .result-box{border:1px solid var(--line);border-radius:8px;background:var(--soft);padding:10px;margin-top:10px;font-size:13px}
     .download-links{display:flex;flex-direction:column;gap:5px;margin-top:8px}
-    @media (max-width:900px){.admin-list{grid-template-columns:1fr}}
+    .launch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+    .launch-card{border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px}
+    .launch-card h3{margin:0 0 8px;font-size:16px}
+    .launch-card code{display:block;word-break:break-all;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px;margin:8px 0}
+    .qr-img{width:180px;height:180px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px}
+    .launch-muted{color:var(--muted);font-size:13px}
+    .status-ok{color:#076b4f;font-weight:700}.status-warn{color:#a42518;font-weight:700}
+    .status-chip{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:12px;font-weight:700}
+    .status-chip.ok{border-color:#91d3ad;background:#e7f8ef;color:#087443}
+    .status-chip.warn{border-color:#efb0a9;background:#fff0f0;color:#a42518}
+    .status-chip.neutral{background:var(--soft);color:#555}
+    @media (max-width:900px){.admin-list,.pathway-workspace{grid-template-columns:1fr}}
     .summary{border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:12px;margin-top:12px;color:#333}
     .pill{display:inline-block;background:#eef;border:1px solid #dde;border-radius:999px;padding:4px 10px;margin:4px 4px 0 0;font-size:12px;color:#334}
     .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
@@ -51,6 +72,7 @@
     .admin-tab.active{display:block}
     button,a.button{appearance:none;border:1px solid #111;background:#111;color:#fff;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;text-decoration:none}
     button.secondary,a.secondary{background:#fff;color:#111;border-color:var(--line)}
+    button:disabled{opacity:.45;cursor:not-allowed}
     @media (max-width:720px){.row{grid-template-columns:1fr}}
   </style>
 </head>
@@ -61,12 +83,20 @@
 
 <main>
   <nav class="tabs" aria-label="Admin sections">
-    <button class="tab-btn active" type="button" data-tab="setup">Setup</button>
+    <button class="tab-btn active" type="button" data-tab="launch">Launch</button>
+    <button class="tab-btn" type="button" data-tab="setup">Setup</button>
     <button class="tab-btn" type="button" data-tab="submissions">Submissions</button>
     <button class="tab-btn" type="button" data-tab="roadmap">Roadmap</button>
   </nav>
 
-  <section id="tab-setup" class="admin-tab active">
+  <section id="tab-launch" class="admin-tab active">
+    <fieldset>
+      <legend>Launch Dashboard</legend>
+      <div id="launchRoot">Loading launch information...</div>
+    </fieldset>
+  </section>
+
+  <section id="tab-setup" class="admin-tab">
     <fieldset>
       <legend>Workflow</legend>
       <div class="row">
@@ -135,47 +165,11 @@
 
     <fieldset>
       <legend>Future Paperwork Pathways</legend>
-      <div class="placeholder-grid">
-        <section class="placeholder-card">
-          <h3>Extended Range (XR) <span class="badge">planned</span></h3>
-          <small>Future student pathway for XR paperwork.</small>
-          <ul>
-            <li>XR waiver PDF not loaded/mapped</li>
-            <li>XR RDC PDF not loaded/mapped</li>
-          </ul>
-        </section>
-        <section class="placeholder-card">
-          <h3>Freediving fun divers <span class="badge">planned</span></h3>
-          <small>Future certified freediver / non-student flow.</small>
-          <ul>
-            <li>Required form set not finalized</li>
-            <li>PDFs not loaded/mapped</li>
-          </ul>
-        </section>
-        <section class="placeholder-card">
-          <h3>Freediving students <span class="badge">planned</span></h3>
-          <small>Future student flow for freediving courses.</small>
-          <ul>
-            <li>Required form set not finalized</li>
-            <li>PDFs not loaded/mapped</li>
-          </ul>
-        </section>
-        <section class="placeholder-card">
-          <h3>Snorkeling fun divers <span class="badge">planned</span></h3>
-          <small>Future snorkeling guest flow.</small>
-          <ul>
-            <li>Required form set not finalized</li>
-            <li>PDFs not loaded/mapped</li>
-          </ul>
-        </section>
-        <section class="placeholder-card">
-          <h3>Snorkeling students <span class="badge">planned</span></h3>
-          <small>Future instructional snorkeling flow.</small>
-          <ul>
-            <li>Required form set not finalized</li>
-            <li>PDFs not loaded/mapped</li>
-          </ul>
-        </section>
+      <div class="pathway-workspace">
+        <div>
+          <div class="placeholder-grid" id="pathwayGrid"></div>
+        </div>
+        <div class="pathway-detail" id="pathwayDetail">Loading pathway workspace...</div>
       </div>
     </fieldset>
   </section>
@@ -236,6 +230,8 @@
   const activityType = document.getElementById('activityType');
   const summary = document.getElementById('summary');
   const submissionState = { rows: [], selectedId: null };
+  const PATHWAY_PROGRESS_KEY = 'diveFormPathwayProgress';
+  const pathwayState = { pathways: [], selectedId: null, progress: {} };
 
   function escapeHtml(value){
     return String(value ?? '').replace(/[&<>"']/g, ch => ({
@@ -247,6 +243,102 @@
     if (!value) return '';
     const d = new Date(value);
     return isNaN(d) ? String(value) : d.toLocaleString();
+  }
+
+  async function copyText(text){
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      window.prompt('Copy link', text);
+    }
+  }
+
+  async function loadLaunchInfo(){
+    const root = document.getElementById('launchRoot');
+    root.textContent = 'Loading launch information...';
+    try {
+      const res = await fetch('/admin/api/launch-info');
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Could not load launch information');
+      renderLaunchInfo(json);
+    } catch (err) {
+      root.innerHTML = `<div class="result-box">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function launchCard(title, url, kind, note, statusHtml){
+    if (!url) {
+      return `
+        <div class="launch-card">
+          <h3>${escapeHtml(title)}</h3>
+          ${statusHtml || '<p class="status-warn">Not configured</p>'}
+          <p class="launch-muted">${escapeHtml(note || '')}</p>
+        </div>
+      `;
+    }
+    const qr = `/admin/api/qr?data=${encodeURIComponent(url)}`;
+    return `
+      <div class="launch-card">
+        <h3>${escapeHtml(title)}</h3>
+        <img class="qr-img" src="${qr}" alt="QR for ${escapeHtml(title)}">
+        <code>${escapeHtml(url)}</code>
+        <div class="actions">
+          <a class="button secondary" href="${escapeHtml(url)}" target="_blank" rel="noopener">Open</a>
+          <button class="secondary" type="button" data-copy="${escapeHtml(url)}">Copy</button>
+        </div>
+        ${statusHtml || ''}
+        <p class="launch-muted">${escapeHtml(note || (kind === 'guest' ? 'Guests scan this to open the form.' : 'Admin link requires password.'))}</p>
+      </div>
+    `;
+  }
+
+  function internetStatus(info){
+    if (!info?.configured) return '<span class="status-chip neutral">Not configured</span>';
+    if (info.reachable) return '<span class="status-chip ok">Reachable</span>';
+    return '<span class="status-chip warn">Configured, not reachable</span>';
+  }
+
+  function renderLaunchInfo(info){
+    const root = document.getElementById('launchRoot');
+    const lan = info.lan || [];
+    const preferredLan = lan[0];
+    root.innerHTML = `
+      <div class="summary">
+        <strong>Server is running on port ${escapeHtml(info.port)}</strong>
+        <div class="launch-muted">Use the LAN guest QR for phones on the same WiFi. Use the public QR only after a tunnel/domain is configured.</div>
+      </div>
+      <div class="launch-grid">
+        ${launchCard('Guest form - local network', preferredLan?.guestUrl, 'guest', preferredLan ? `WiFi/LAN address: ${preferredLan.ip}` : 'No LAN IP detected. Connect this machine to WiFi or Ethernet.')}
+        ${launchCard('Admin - local network', preferredLan?.adminUrl, 'admin', preferredLan ? 'Use this from another device on the same network.' : 'No LAN IP detected.')}
+        ${launchCard('Guest form - this computer', info.local?.guestUrl, 'guest', 'Useful for testing on this computer only.')}
+        ${launchCard('Internet guest form', info.internet?.guestUrl, 'guest', info.internet?.note || 'Not configured.', internetStatus(info.internet))}
+      </div>
+      <div class="result-box">
+        <strong>Internet access</strong><br>
+        ${info.internet?.configured
+          ? `<span class="status-ok">Configured${info.internet.provider ? ` via ${escapeHtml(info.internet.provider)}` : ''}</span>`
+          : '<span class="status-warn">Not connected</span>'}
+        <br><span class="launch-muted">Set PUBLIC_BASE_URL in .env when a Cloudflare Tunnel, ngrok domain, or similar public tunnel points to this server. Health check: ${escapeHtml(info.internet?.checkedUrl || 'not configured')}</span>
+        <div class="actions"><button type="button" class="secondary" id="refreshLaunch">Refresh launch status</button></div>
+      </div>
+    `;
+    root.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.addEventListener('click', () => copyText(btn.dataset.copy));
+    });
+    const refresh = document.getElementById('refreshLaunch');
+    if (refresh) refresh.addEventListener('click', loadLaunchInfo);
+  }
+
+  function readPathwayProgress(){
+    try {
+      return JSON.parse(localStorage.getItem(PATHWAY_PROGRESS_KEY) || '{}') || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function savePathwayProgress(){
+    localStorage.setItem(PATHWAY_PROGRESS_KEY, JSON.stringify(pathwayState.progress));
   }
 
   function selectedForms(){
@@ -318,6 +410,132 @@
     save();
     window.location.href = '/';
   });
+
+  async function loadPathways(){
+    const detail = document.getElementById('pathwayDetail');
+    try {
+      const res = await fetch('/data/pathways.json', { cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok || !Array.isArray(json.pathways)) throw new Error('Could not load pathway definitions');
+      pathwayState.pathways = json.pathways;
+      pathwayState.progress = readPathwayProgress();
+      pathwayState.selectedId = pathwayState.pathways[0]?.id || null;
+      renderPathways();
+      renderPathwayDetail();
+    } catch (err) {
+      detail.innerHTML = `<div class="result-box">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function pathwayProgress(id){
+    return pathwayState.progress[id] || {
+      sourcePdfs: false,
+      coordinateMaps: false,
+      outputRules: false,
+      smokeTest: false,
+      notes: ''
+    };
+  }
+
+  function pathwayReady(id){
+    const p = pathwayProgress(id);
+    return !!(p.sourcePdfs && p.coordinateMaps && p.outputRules && p.smokeTest);
+  }
+
+  function renderPathways(){
+    const grid = document.getElementById('pathwayGrid');
+    grid.innerHTML = pathwayState.pathways.map(pathway => {
+      const active = pathway.id === pathwayState.selectedId ? 'active' : '';
+      const ready = pathwayReady(pathway.id);
+      const formSummary = (pathway.forms || []).map(form => `<li>${escapeHtml(form.label)} - ${escapeHtml(form.status)}</li>`).join('');
+      return `
+        <button type="button" class="placeholder-card ${active}" data-pathway="${escapeHtml(pathway.id)}">
+          <h3>${escapeHtml(pathway.title)} <span class="badge">${ready ? 'ready to wire' : escapeHtml(pathway.status || 'planned')}</span></h3>
+          <small>${escapeHtml(pathway.summary || '')}</small>
+          <ul>${formSummary}</ul>
+        </button>
+      `;
+    }).join('');
+    grid.querySelectorAll('[data-pathway]').forEach(card => {
+      card.addEventListener('click', () => {
+        pathwayState.selectedId = card.dataset.pathway;
+        renderPathways();
+        renderPathwayDetail();
+      });
+    });
+  }
+
+  function renderPathwayDetail(){
+    const detail = document.getElementById('pathwayDetail');
+    const pathway = pathwayState.pathways.find(p => p.id === pathwayState.selectedId);
+    if (!pathway) {
+      detail.textContent = 'Select a pathway.';
+      return;
+    }
+    const progress = pathwayProgress(pathway.id);
+    const checks = [
+      ['sourcePdfs', 'Source PDFs loaded'],
+      ['coordinateMaps', 'Coordinates mapped'],
+      ['outputRules', 'Output rules decided'],
+      ['smokeTest', 'Smoke test passed']
+    ];
+    detail.innerHTML = `
+      <h3>${escapeHtml(pathway.title)}</h3>
+      <dl class="detail-grid">
+        <dt>Audience</dt><dd>${escapeHtml(pathway.audience || '')}</dd>
+        <dt>Workflow key</dt><dd>${escapeHtml(pathway.workflow || '')}</dd>
+        <dt>Activity type</dt><dd>${escapeHtml(pathway.activityType || '')}</dd>
+        <dt>Status</dt><dd>${pathwayReady(pathway.id) ? 'Ready for implementation pass' : 'Planned / not active'}</dd>
+      </dl>
+      <h4>Forms to define</h4>
+      <div class="status-list">
+        ${(pathway.forms || []).map(form => `
+          <div class="status-row">
+            <strong>${escapeHtml(form.label)} <span class="badge">${escapeHtml(form.status)}</span></strong>
+            <small>${escapeHtml(form.note || '')}</small>
+          </div>
+        `).join('')}
+      </div>
+      <h4>Readiness checklist</h4>
+      <div class="checklist">
+        ${checks.map(([key, label]) => `
+          <label><input type="checkbox" data-pathway-check="${key}" ${progress[key] ? 'checked' : ''}> ${label}</label>
+        `).join('')}
+      </div>
+      <h4>Rules to decide</h4>
+      <ul>${(pathway.rules || []).map(rule => `<li>${escapeHtml(rule)}</li>`).join('')}</ul>
+      <h4>Open questions</h4>
+      <ul>${(pathway.questions || []).map(question => `<li>${escapeHtml(question)}</li>`).join('')}</ul>
+      <label for="pathwayNotes">Notes</label>
+      <textarea class="notes" id="pathwayNotes" placeholder="Decisions, PDF filenames, mapping notes...">${escapeHtml(progress.notes || '')}</textarea>
+      <div class="actions">
+        <a class="button secondary" href="/pdf%20coordinate%20mapper/pdf-coordinate-tester-lite.html" target="_blank" rel="noopener">Open mapper</a>
+        <button type="button" class="secondary" id="savePathwayNotes">Save pathway notes</button>
+        <button type="button" id="readyPathway" ${pathwayReady(pathway.id) ? '' : 'disabled'}>Ready to implement</button>
+      </div>
+      <div id="pathwayResult"></div>
+    `;
+    detail.querySelectorAll('[data-pathway-check]').forEach(input => {
+      input.addEventListener('change', () => {
+        const next = pathwayProgress(pathway.id);
+        next[input.dataset.pathwayCheck] = input.checked;
+        pathwayState.progress[pathway.id] = next;
+        savePathwayProgress();
+        renderPathways();
+        renderPathwayDetail();
+      });
+    });
+    document.getElementById('savePathwayNotes').addEventListener('click', () => {
+      const next = pathwayProgress(pathway.id);
+      next.notes = document.getElementById('pathwayNotes').value;
+      pathwayState.progress[pathway.id] = next;
+      savePathwayProgress();
+      document.getElementById('pathwayResult').innerHTML = '<div class="result-box">Saved pathway notes locally.</div>';
+    });
+    document.getElementById('readyPathway').addEventListener('click', () => {
+      document.getElementById('pathwayResult').innerHTML = '<div class="result-box">This pathway is marked ready for a coding pass. Next step: add form catalog entries, source PDFs, coordinate maps, and backend output rules.</div>';
+    });
+  }
 
   async function loadSubmissions(){
     const list = document.getElementById('submissionList');
@@ -441,6 +659,7 @@
   });
 
   let roadmapLoaded = false;
+  let launchLoaded = false;
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
@@ -454,10 +673,17 @@
         submissionsLoaded = true;
         loadSubmissions();
       }
+      if (tab === 'launch' && !launchLoaded) {
+        launchLoaded = true;
+        loadLaunchInfo();
+      }
     });
   });
 
   load();
+  loadPathways();
+  launchLoaded = true;
+  loadLaunchInfo();
 })();
 </script>
 </body>

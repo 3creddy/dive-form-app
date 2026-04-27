@@ -54,6 +54,23 @@
       "description": "Give staff visibility and recovery tools during real-world operations.",
       "items": [
         {
+          "title": "One-click Windows launcher",
+          "detail": "Add a root launcher script that starts the Node server from the right folder and opens admin in the browser.",
+          "status": "done",
+          "priority": "high"
+        },
+        {
+          "title": "Launch dashboard with QR codes",
+          "detail": "Add an admin launch view showing local, LAN, and optional public guest/admin links with QR codes.",
+          "status": "done",
+          "priority": "high"
+        },
+        {
+          "title": "Public URL readiness check",
+          "detail": "Check configured public/tunnel URL against /healthz and show reachable/error status without replacing LAN fallback.",
+          "status": "done"
+        },
+        {
           "title": "Roadmap kanban tab",
           "detail": "Add a roadmap data file and admin kanban renderer for tracking product work.",
           "status": "done"
@@ -66,6 +83,11 @@
         {
           "title": "Future pathway placeholders",
           "detail": "Show planned XR, freediving, and snorkeling paperwork pathways in admin without enabling unmapped forms.",
+          "status": "done"
+        },
+        {
+          "title": "Pathway development workspace",
+          "detail": "Let admin click planned pathways, review forms/rules/questions, track readiness, and save local notes before implementation.",
           "status": "done"
         },
         {
@@ -94,6 +116,12 @@
           "title": "Environment health panel",
           "detail": "Show DB status, SMTP status, forms directory status, and LAN URL in the admin panel.",
           "status": "todo"
+        },
+        {
+          "title": "Public tunnel integration",
+          "detail": "Choose and wire Cloudflare Tunnel, ngrok, or Tailscale Funnel so the launch page's public URL can become reachable with local-network fallback.",
+          "status": "todo",
+          "priority": "high"
         }
       ]
     },
@@ -114,6 +142,11 @@
           "detail": "Define where new source PDFs are stored, how they are named, how coordinate maps are created, and how a mapped PDF becomes selectable.",
           "status": "todo",
           "priority": "high"
+        },
+        {
+          "title": "Promote pathway workspace to implementation queue",
+          "detail": "Convert a ready planned pathway into code tasks for form catalog entries, PDF files, coordinate maps, output rules, and smoke tests.",
+          "status": "todo"
         },
         {
           "title": "Medical contact fields",
