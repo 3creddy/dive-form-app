@@ -13,6 +13,25 @@ const { formFiles, centerSuffixes } = require('./utils/fieldMap');
 const { coordsByFile, checkboxByFile } = require('./utils/coordMap');
 
 const FORMS_DIR = path.resolve(__dirname, '../forms');
+const FORM_TITLES = {
+  medical: 'Medical',
+  waiver: 'Waiver',
+  boat: 'Boat-Waiver',
+  rdc: 'RDC',
+  youth: 'Youth-Waiver-Addendum'
+};
+const CENTER_SPECIFIC_FORMS = new Set(['medical', 'waiver', 'boat']);
+const ALLOWED_FORM_KEYS = new Set(Object.keys(formFiles));
+const DEFAULT_FORMS_BY_ACTIVITY = {
+  course: ['medical', 'rdc', 'waiver'],
+  fun_dive: ['medical', 'boat'],
+  course_and_fun_dive: ['medical', 'rdc', 'waiver', 'boat']
+};
+const DEFAULT_ACTIVITY_BY_DIVER = {
+  course_guest: 'course',
+  certified_fun_diver: 'fun_dive',
+  course_guest_fun_diving: 'course_and_fun_dive'
+};
 
 // startup scan
 (function startupScan() {
@@ -88,6 +107,43 @@ function buildNameParts(data) {
 function b64ToUint8(b64) {
   const base64 = (b64 || '').split(',')[1] || b64; // handle data URLs
   return Uint8Array.from(Buffer.from(base64 || '', 'base64'));
+}
+
+function facilityNameForCenter(center) {
+  const val = String(center || '').toLowerCase();
+  if (val.includes('havelock')) return 'DIVEIndia Havelock 791197';
+  if (val.includes('neil')) return 'DIVEIndia Neil 791033';
+  return center || '';
+}
+
+function safeFilenamePart(value, fallback = 'Guest') {
+  const cleaned = String(value || fallback)
+    .replace(/[^\w\- ]+/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return cleaned || fallback;
+}
+
+function normalizeSelectedForms(data) {
+  const selected = Array.isArray(data?.selectedForms) ? data.selectedForms : [];
+  const activityType = data?.activityType || DEFAULT_ACTIVITY_BY_DIVER[data?.diverType] || 'course';
+  const activityForms = DEFAULT_FORMS_BY_ACTIVITY[activityType] || DEFAULT_FORMS_BY_ACTIVITY.course;
+  const keys = [...selected, ...activityForms]
+    .map(k => String(k || '').trim().toLowerCase())
+    .filter(k => ALLOWED_FORM_KEYS.has(k));
+
+  if (!keys.includes('medical')) keys.unshift('medical');
+
+  const isMinor = calcIsMinor(data?.dob);
+  if (isMinor && keys.includes('waiver') && !keys.includes('youth')) keys.push('youth');
+
+  const unique = [];
+  for (const key of keys) {
+    if (key === 'youth' && !isMinor) continue;
+    if (!unique.includes(key)) unique.push(key);
+  }
+  return unique;
 }
 
 // dot-path getter
@@ -369,40 +425,37 @@ async function overlayWithData(srcBytes, filename, data, sigGuestPNG, sigGuardia
 
   // signatures
   if (sigGuestPNG || sigGuardianPNG) {
+    const drawSignature = async (page, imgBytes, sgCfg, label) => {
+      if (!imgBytes || !sgCfg || sgCfg.x == null || sgCfg.y == null) return;
+      try {
+        const sig = await pdfDoc.embedPng(imgBytes);
+        const targetW = sgCfg.width || 220;
+        const targetH = sgCfg.height || (sig.height * (targetW / sig.width));
+        const scale = Math.min(targetW / sig.width, targetH / sig.height);
+        const w = sig.width * scale;
+        const h = sig.height * scale;
+        page.drawImage(sig, { x: sgCfg.x, y: sgCfg.y, width: w, height: h });
+      } catch (e) {
+        console.warn(`${label} signature embed error:`, e && e.message);
+      }
+    };
+
+    const normalizeCfgs = (cfgOrArray) => Array.isArray(cfgOrArray) ? cfgOrArray : [cfgOrArray].filter(Boolean);
+    const isMinor = calcIsMinor(data.dob);
+
     for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
       const cfg = map[pageIndex] || {};
       const page = pages[pageIndex];
       if (!page) continue;
 
-      if (sigGuestPNG && cfg.sigGuest) {
-        iterateCfgs(cfg.sigGuest, async (sgCfg) => {
-          if (!sgCfg || sgCfg.x == null || sgCfg.y == null) return;
-          try {
-            const sig = await pdfDoc.embedPng(sigGuestPNG);
-            const targetW = sgCfg.width || 220;
-            const targetH = sgCfg.height || (sig.height * (targetW / sig.width));
-            const scale = Math.min(targetW / sig.width, targetH / sig.height);
-            const w = sig.width * scale;
-            const h = sig.height * scale;
-            page.drawImage(sig, { x: sgCfg.x, y: sgCfg.y, width: w, height: h });
-          } catch (e) { console.warn('Guest signature embed error:', e && e.message); }
-        });
+      for (const sgCfg of normalizeCfgs(cfg.sigGuest)) {
+        await drawSignature(page, sigGuestPNG, sgCfg, 'Guest');
       }
 
-      const isMinor = calcIsMinor(data.dob);
-      if (isMinor && sigGuardianPNG && cfg.sigGuardian) {
-        iterateCfgs(cfg.sigGuardian, async (sgCfg) => {
-          if (!sgCfg || sgCfg.x == null || sgCfg.y == null) return;
-          try {
-            const sigG = await pdfDoc.embedPng(sigGuardianPNG);
-            const targetW = sgCfg.width || 220;
-            const targetH = sgCfg.height || (sigG.height * (targetW / sigG.width));
-            const scale = Math.min(targetW / sigG.width, targetH / sigG.height);
-            const w = sigG.width * scale;
-            const h = sigG.height * scale;
-            page.drawImage(sigG, { x: sgCfg.x, y: sgCfg.y, width: w, height: h });
-          } catch (e) { console.warn('Guardian signature embed error:', e && e.message); }
-        });
+      if (isMinor) {
+        for (const sgCfg of normalizeCfgs(cfg.sigGuardian)) {
+          await drawSignature(page, sigGuardianPNG, sgCfg, 'Guardian');
+        }
       }
     }
   }
@@ -481,6 +534,51 @@ async function makeCoverSheet(data, label, sigGuestPNG, sigGuardianPNG) {
   return doc;
 }
 
+async function fillSingleForm(relName, data) {
+  const srcPath = ensureFormFileExists(relName);
+  const srcBytes = fs.readFileSync(srcPath);
+  const guestSig = data.signature ? b64ToUint8(data.signature) : null;
+  const guardianSig = (calcIsMinor(data.dob) && data.guardianSignature) ? b64ToUint8(data.guardianSignature) : null;
+  return await overlayWithData(srcBytes, relName, data, guestSig, guardianSig);
+}
+
+async function buildComponentFormBuffers(data) {
+  const selectedForms = normalizeSelectedForms(data);
+  const centers = Array.isArray(data.centers) ? data.centers.filter(Boolean) : [data.centers || data.center].filter(Boolean);
+  const labels = centers.length ? centerSuffixes(centers) : ['Havelock'];
+  const nameParts = buildNameParts(data);
+  const safeName = safeFilenamePart(nameParts.fullName || data.fullName || data.name || 'Guest');
+  const dateStamp = format(new Date(), 'yyyyMMdd');
+  const packets = [];
+
+  for (const key of selectedForms) {
+    const relName = formFiles[key];
+    ensureFormFileExists(relName);
+
+    if (CENTER_SPECIFIC_FORMS.has(key)) {
+      for (const label of labels) {
+        const scopedData = {
+          ...data,
+          centers: [label],
+          center: label,
+          facilityName: facilityNameForCenter(label)
+        };
+        const bytes = await fillSingleForm(relName, scopedData);
+        const filename = `${safeName}_${safeFilenamePart(label, 'Center')}_${FORM_TITLES[key] || key}_${dateStamp}.pdf`;
+        packets.push({ filename, bytes, formKey: key, center: label });
+        console.log(`✅ Component built: ${filename}`);
+      }
+    } else {
+      const bytes = await fillSingleForm(relName, data);
+      const filename = `${safeName}_${FORM_TITLES[key] || key}_${dateStamp}.pdf`;
+      packets.push({ filename, bytes, formKey: key });
+      console.log(`✅ Component built: ${filename}`);
+    }
+  }
+
+  return packets;
+}
+
 async function buildPacketBuffers(data) {
   const isMinor = calcIsMinor(data.dob);
   const centers = Array.isArray(data.centers) ? data.centers : [data.centers].filter(Boolean);
@@ -521,4 +619,4 @@ async function buildPacketBuffers(data) {
   return packets;
 }
 
-module.exports = { buildPacketBuffers };
+module.exports = { buildPacketBuffers, buildComponentFormBuffers, normalizeSelectedForms };

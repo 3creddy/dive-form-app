@@ -1,72 +1,132 @@
 # Project State
 
-## What this app is
+## What This App Is
 
-An offline-capable web form app for DIVEIndia (scuba dive centers, currently Havelock + Neil Island under SSI affiliation). It replaces/supplements Zoho Forms for collecting signed liability and medical paperwork from anyone entering the water, served over local WiFi so it works without internet.
+This is a standalone local-network backup registration utility for DIVEIndia. It is used when the normal online customer registration flow is too slow, unavailable, or frustrating for a guest. Staff run it on local WiFi/LAN, collect the distilled minimum customer data, generate signed PDFs, and email them when internet/SMTP is available.
 
-The problem it solves: SSI's own system only covers SSI students whose courses are unlocked under DIVEIndia's center. Everyone else (fun divers, PADI students, SSI students under a different center, snorkelers, freedivers) needs paperwork collected outside SSI. This app collects that paperwork, fills pre-built PDFs with the form data, and emails them when internet is available.
+The current stack is:
 
-## Diver types that need forms
+- Vanilla HTML/JS frontend served from `frontend/`
+- Node/Express backend in `backend/server.js`
+- PDF filling with `pdf-lib` and manual coordinate maps
+- Nodemailer for email
+- Postgres submission storage via `DATABASE_URL`
 
-1. **Fun divers** — certified divers, not students. Need medical + boat waiver + general waiver (liability release). Age-dependent (minors need guardian + youth addendum).
-2. **SSI students (courses NOT under DIVEIndia)** — same as fun divers from a paperwork perspective. SSI system either doesn't apply or has wrong-center forms.
-3. **PADI students with freelance instructors** — completely outside SSI, need full DIVEIndia paperwork set.
-4. **SSI students (courses under DIVEIndia)** — primary paperwork goes via SSI system. This app is a fallback or supplement.
-5. **Snorkelers** — lighter form set (no scuba medical depth, still need liability waiver + basic health check).
-6. **Freedivers** — SSI freediving pathway, has its own forms.
-7. **Recreational scuba students** — full form set.
-8. **Extended range (XR) students** — full form set, potentially additional forms.
-9. **Minors (any category)** — guardian signature required + Youth Addendum PDF.
+## Core Form Rules
 
-## Form types (PDFs currently mapped)
+The app generates separate PDF attachments, not one combined bundle. All generated PDFs should go on the same single email.
 
-| Form | Applies to |
-|------|-----------|
-| Medical Statement | All divers doing any underwater activity |
-| Boat Waiver (Havelock / Neil variants) | All |
-| General Waiver | All |
-| RDC Liability Release | All |
-| Youth Addendum | Minors only |
+Current mapped forms:
 
-More PDFs need coordinate-mapping for freediving / snorkeling / XR pathways.
+- `medical`: Medical declaration. Applies to anyone diving with DIVEIndia.
+- `rdc`: Responsible Diver Code. Applies to course/training guests.
+- `waiver`: Assumption of risk / liability release / hold harmless agreement. Applies to course/training guests.
+- `boat`: Boat waiver. Applies to certified fun divers and guests who have completed a course and are fun diving.
+- `youth`: Youth waiver addendum. This is specifically an addendum to the waiver and is auto-included for minors only when waiver is included.
 
-## Internet / local network toggle
+Current activity defaults:
 
-Goal: same QR code / link works whether app is internet-accessible or LAN-only. Currently no toggle — server runs on port 3000, local only.
+- `course`: `medical + rdc + waiver`
+- `fun_dive`: `medical + boat`
+- `course_and_fun_dive`: `medical + rdc + waiver + boat`
+- Minor guest with waiver: add `youth`
 
-## Medical form conditional logic
+Backend must enforce these defaults from `activityType`/`diverType` as a safety net, even if the browser sends a stale or incomplete `selectedForms` array.
 
-Answering "yes" to certain questions cascades into mandatory "yes" answers on follow-up boxes (A–G). This is partly implemented on the frontend. A physician sign-off requirement can be triggered.
+## Admin Page
 
-## Deployment & infra
+The staff-facing setup page is `frontend/admin.html`, served at `/admin` and `/admin.html`.
 
-- Running locally on port 3000 (no live deployment URL yet)
-- Stack: Node.js / Express, PostgreSQL (optional/non-blocking), pdf-lib, Nodemailer, Vanilla JS
-- Backend entry: `backend/server.js` — serves static files from `frontend/`
-- Start: open terminal in `backend/` folder → `node server.js` → prints LAN IP(s) to console
-- Two centers currently: Havelock, Neil. More planned as DIVEIndia scales.
-- **CRITICAL: the current flow (form → PDF generation → local save / email) is working and in active use as a backup to the main Zoho + SSI system. Nothing we build should break this. Every change must be tested against a real submission before committing.**
+- It chooses diver type, activity type, and desired PDF outputs.
+- It includes a Roadmap tab that mounts the vanilla JS kanban renderer.
+- It links to the existing PDF coordinate mapper at `/pdf%20coordinate%20mapper/pdf-coordinate-tester-lite.html`.
+- It shows disabled/planned placeholders for XR, freediving, and snorkeling pathways until source PDFs are loaded and mapped.
+- It includes a Submissions tab for browsing DB submissions, regenerating filled PDFs, downloading regenerated files, and emailing regenerated PDFs to a specified address.
+- It stores setup in browser `localStorage` under `diveFormAdminConfig`.
+- The guest-facing form reads that config quietly.
+- The guest page should not expose the full admin matrix.
+- Admin access is protected by HTTP Basic auth. Default password is `password123`, configurable as `ADMIN_PASSWORD`.
 
-## Non-obvious design decisions
+## Future Paperwork Pathways
 
-- PDF generation uses manual x/y coordinate maps (coordMap.js) — not AcroForm fields. Coordinates break if PDFs are re-exported or resized.
-- Postgres insert is non-blocking: if DB is down, submission still generates PDFs.
-- Email transport is created per-request (not a singleton).
-- Do NOT use Claude API or any AI to auto-detect PDF field positions — this was tried and rolled back. Stay on manual coordinate mapping.
+The app needs the same overarching model for multiple pathways: diver/activity type -> required output forms -> source PDF files -> coordinate maps -> generated separate PDF attachments -> one email.
 
-## Active bugs (known, not yet fixed)
+Planned but not yet active because PDFs are not loaded/mapped:
 
-- Some coordMap.js entries are commented out (email/phone fields on medical form)
-- No server-side input validation (email format, phone, name length)
-- Duplicate submission detection exists (canonical hash) but not enforced
+- Extended Range (XR): XR waiver and XR RDC are expected.
+- Freediving fun divers: required form set still needs scoping.
+- Freediving students: required form set still needs scoping.
+- Snorkeling fun divers: required form set still needs scoping.
+- Snorkeling students: required form set still needs scoping.
 
-## Session history (newest first)
+Do not enable these as selectable outputs until their source PDFs exist in the repo and their coordinate maps are complete.
 
-### Session 3 (2026-04-26)
-Rolled back repo to 4175da4 (last known-working backup before Postgres/admin experiments). Memory files preserved and restored. Clean slate for design-first approach over next sessions.
+## Roadmap System
 
-### Session 2 (2026-04-26)
-Consolidated memory systems. Resolved merge conflicts. No feature code changed.
+Roadmap has two manually synced sources:
 
-### Session 1 (2026-04-26)
-Set up session system and captured full business context. Created ROADMAP.md, roadmap kanban. No submission flow or PDF logic changed.
+- `ROADMAP.md`: human-readable plan with layered checklist sections, design conversations, and deferred items.
+- `public/data/roadmap.json`: machine-readable data served at `/data/roadmap.json` for the admin kanban UI.
+
+The renderer is `public/js/admin/roadmap.js`. It is vanilla JS, self-contained, and mounts into `<div id="roadmap-root">` when `initRoadmap()` is called from the admin Roadmap tab.
+
+Whenever one roadmap source changes, update the other in the same session.
+
+## Guest Form
+
+The guest-facing form is `frontend/index.html`, served at `/`.
+
+- It collects participant details, dive center(s), signatures, and medical Q1-Q10.
+- If DOB is under 18, guardian fields/signature are shown and required.
+- It displays only a compact staff setup summary and an admin link.
+
+## Backend Flow
+
+Submit route: `POST /submit`
+
+1. Normalize centers.
+2. Normalize selected forms server-side.
+3. Save raw JSON in `submissions/`.
+4. Save submission to Postgres.
+5. Build component PDF buffers via `buildComponentFormBuffers`.
+6. In test mode or if mailer is unavailable, save separate PDFs locally.
+7. Otherwise call `sendPackets` once so all component PDFs attach to one email.
+
+Important current caveat: the code currently blocks PDF/email generation if Postgres insert fails. Earlier memory said DB should be non-blocking; code and desired behavior may need reconciliation.
+
+Admin regeneration flow:
+
+1. Admin calls `/admin/api/submissions` to browse/search DB rows.
+2. Admin calls `/admin/api/submissions/:id` to view a row and reconstructed regeneration payload.
+3. Admin calls `/admin/api/submissions/:id/generate` with `action: "save"` to regenerate PDFs and get protected download links.
+4. Admin calls the same endpoint with `action: "email"` and an email address to send one email with regenerated PDFs as separate attachments.
+
+New submissions store `metadata.fullPayload` so future regeneration can use the original form payload. Older rows are reconstructed from DB columns, `medical_json`, `signatures_json`, and metadata when possible.
+
+## Non-Obvious Design Decisions
+
+- PDF filling uses manual x/y coordinate overlays in `backend/utils/coordMap.js`, not AcroForm fields.
+- Coordinates can break if source PDFs are re-exported, resized, or replaced.
+- Do not introduce AI/automatic field-position detection for PDF mapping unless the user explicitly asks.
+- Center-specific forms (`medical`, `waiver`, `boat`) may produce per-center PDFs.
+- RDC and youth waiver addendum are generated once.
+
+## Known Sharp Edges
+
+- Some medical email/phone coordinate entries are still commented out.
+- Server-side validation is minimal.
+- Duplicate canonical hashes are computed but not enforced.
+- `postgres/import-legacy-csv.js` references `staging_submissions`, but the current migration may not create it.
+- `.env.example` should stay aligned with required env vars: `DATABASE_URL`, `ADMIN_PASSWORD`, SMTP settings, and `DEFAULT_RECIPIENTS`.
+
+## Recent Session Notes
+
+### 2026-04-27
+
+Added admin-driven form selection and separate component PDF generation. The admin page stores workflow config locally; the guest form reads it. Backend now normalizes selected forms from activity type so stale payloads still generate required outputs. Email path sends one message with all selected PDFs as separate attachments. Admin access is protected with password `password123` by default.
+
+Added the roadmap system: `ROADMAP.md`, `public/data/roadmap.json`, and `public/js/admin/roadmap.js`, with an admin Roadmap tab. Future roadmap edits must keep Markdown and JSON in sync.
+
+Added admin placeholders for future XR, freediving, and snorkeling pathways plus a link to the PDF coordinate mapper. Roadmap updated with extensible form catalog and PDF intake/mapping workflow tasks.
+
+Added admin submission browser and regeneration actions. Staff can search DB submissions, regenerate PDFs for a selected submission, download admin-protected regenerated files, or email regenerated PDFs to a specified address.

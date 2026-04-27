@@ -9,9 +9,14 @@ const cors    = require('cors');
 const bodyParser = require('body-parser');
 const { format } = require('date-fns');
 
-const { createSubmission } = require('./services/submissionService');
+const {
+  createSubmission,
+  listSubmissions,
+  getSubmission,
+  rowToSubmissionPayload
+} = require('./services/submissionService');
 
-const { buildPacketBuffers } = require('./pdfHandler');
+const { buildComponentFormBuffers, normalizeSelectedForms } = require('./pdfHandler');
 let sendPackets = null;
 try { ({ sendPackets } = require('./emailSender')); } catch { /* optional */ }
 
@@ -19,12 +24,44 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 const FRONTEND_DIR = path.resolve(__dirname, '../frontend');
+const PUBLIC_DIR    = path.resolve(__dirname, '../public');
 const SUB_DIR      = path.resolve(__dirname, '../submissions');
 const FORMS_DIR    = path.resolve(__dirname, '../forms');
 fs.mkdirSync(SUB_DIR, { recursive: true });
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '20mb' }));
+
+function requireAdmin(req, res, next) {
+  const header = req.headers.authorization || '';
+  const [scheme, encoded] = header.split(' ');
+  if (scheme === 'Basic' && encoded) {
+    const [, pass = ''] = Buffer.from(encoded, 'base64').toString('utf8').split(':');
+    if (pass === (process.env.ADMIN_PASSWORD || 'password123')) return next();
+  }
+
+  res.setHeader('WWW-Authenticate', 'Basic realm="DIVEIndia Forms Admin"');
+  return res.status(401).send('Admin password required');
+}
+
+function safePdfName(name) {
+  return String(name || 'form').replace(/[^\w.-]+/g, '_');
+}
+
+function savePacketsLocally(packets, prefix = 'regenerated') {
+  const saved = [];
+  for (const p of packets) {
+    const safe = safePdfName(p.filename || p.label || 'form.pdf');
+    const out = path.join(SUB_DIR, `${prefix}-${Date.now()}-${safe}`);
+    fs.writeFileSync(out, Buffer.from(p.bytes || p.buffer));
+    saved.push(path.basename(out));
+  }
+  return saved;
+}
+
+function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
 
 // Startup banner
 try {
@@ -54,6 +91,91 @@ app.get('/dev/submissions/:file', (req,res) => {
   res.send(fs.readFileSync(full));
 });
 
+app.get('/admin/api/submissions', requireAdmin, async (req, res) => {
+  try {
+    const rows = await listSubmissions({
+      search: req.query.q || '',
+      limit: req.query.limit || 50
+    });
+    res.json({ ok: true, submissions: rows });
+  } catch (err) {
+    console.error('Admin submissions list error:', err);
+    res.status(500).json({ ok: false, error: err.message || 'Failed to list submissions' });
+  }
+});
+
+app.get('/admin/api/submissions/:id', requireAdmin, async (req, res) => {
+  try {
+    const row = await getSubmission(req.params.id);
+    if (!row) return res.status(404).json({ ok: false, error: 'Submission not found' });
+    res.json({ ok: true, submission: row, regenerationPayload: rowToSubmissionPayload(row) });
+  } catch (err) {
+    console.error('Admin submission detail error:', err);
+    res.status(500).json({ ok: false, error: err.message || 'Failed to load submission' });
+  }
+});
+
+app.get('/admin/api/generated/:file', requireAdmin, (req, res) => {
+  const file = req.params.file;
+  const full = path.join(SUB_DIR, file);
+  if (!/^[\w.\-]+$/.test(file)) return res.status(400).send('Bad filename');
+  if (!fs.existsSync(full)) return res.status(404).send('Not found');
+  res.setHeader('Content-Type', 'application/pdf');
+  res.send(fs.readFileSync(full));
+});
+
+app.post('/admin/api/submissions/:id/generate', requireAdmin, async (req, res) => {
+  try {
+    const row = await getSubmission(req.params.id);
+    if (!row) return res.status(404).json({ ok: false, error: 'Submission not found' });
+
+    const action = String(req.body?.action || 'save').toLowerCase();
+    const payload = rowToSubmissionPayload(row);
+    payload.selectedForms = normalizeSelectedForms(payload);
+    const packets = await buildComponentFormBuffers(payload);
+
+    if (action === 'email') {
+      const email = String(req.body?.email || '').trim();
+      if (!isEmail(email)) return res.status(400).json({ ok: false, error: 'Valid recipient email is required' });
+      if (!sendPackets) return res.status(500).json({ ok: false, error: 'Email sender is not available' });
+
+      const dateStr = format(new Date(), 'dd/MM/yyyy');
+      const name = payload.name || payload.fullName || [payload.firstName, payload.lastName].filter(Boolean).join(' ') || 'Guest';
+      const subject = `Dive Forms - ${name} - regenerated - ${dateStr}`;
+      const list = packets.map(p => `<li>${p.filename}</li>`).join('');
+      const htmlBody = `<p>Attached are regenerated DIVEIndia forms as separate PDFs in this single email.</p><ul>${list}</ul>`;
+      await sendPackets({
+        guestEmail: email,
+        subject,
+        htmlBody,
+        packets,
+        extraRecipients: [],
+        includeDefaultRecipients: false
+      });
+
+      return res.json({
+        ok: true,
+        action: 'email',
+        message: `Emailed ${packets.length} regenerated PDF attachment(s) to ${email}.`,
+        selectedForms: payload.selectedForms,
+        files: packets.map(p => p.filename)
+      });
+    }
+
+    const saved = savePacketsLocally(packets, `regenerated-${req.params.id.slice(0, 8)}`);
+    res.json({
+      ok: true,
+      action: 'save',
+      message: `Generated ${saved.length} PDF file(s).`,
+      selectedForms: payload.selectedForms,
+      downloads: saved.map(f => `/admin/api/generated/${f}`)
+    });
+  } catch (err) {
+    console.error('Admin regenerate error:', err);
+    res.status(500).json({ ok: false, error: err.message || 'Failed to regenerate PDFs' });
+  }
+});
+
 // Submit route with tester mode
 app.post('/submit', async (req, res) => {
   try {
@@ -63,6 +185,7 @@ app.post('/submit', async (req, res) => {
     const data = req.body || {};
     const centers = Array.isArray(data.centers) ? data.centers : (data.center ? [data.center] : []);
     data.centers = centers;
+    data.selectedForms = normalizeSelectedForms(data);
 
     // Always log raw JSON
     const rawPath = path.join(SUB_DIR, `submission-${Date.now()}${testMode?'-TEST':''}.json`);
@@ -82,8 +205,9 @@ try {
 }
 
 
-    console.log(`🧩 Building packet for: ${centers.join(' & ') || 'Unknown'} ${testMode?'[TEST]':''}`);
-    const packets = await buildPacketBuffers(data);
+    const selectedForms = data.selectedForms;
+    console.log(`🧩 Building separate forms for: ${centers.join(' & ') || 'Unknown'} (${selectedForms.join(', ')}) ${testMode?'[TEST]':''}`);
+    const packets = await buildComponentFormBuffers(data);
 
     // In test mode: save PDFs and return JSON with download URLs
     if (testMode || !sendPackets) {
@@ -99,7 +223,8 @@ try {
       return res.status(200).json({
         ok: true,
         testMode: true,
-        message: 'Forms generated and saved locally.',
+        message: 'Forms generated as separate PDFs and saved locally.',
+        selectedForms,
         downloads: saved.map(f => `/dev/submissions/${f}`)
       });
     }
@@ -108,10 +233,12 @@ try {
     const dateStr = format(new Date(), 'dd/MM/yyyy');
     const centerText = centers.length ? centers.join(' & ') : 'DIVEIndia';
     const subject = `Dive Forms - ${data.name || 'Guest'} - ${centerText} - ${dateStr}`;
-    const htmlBody = `<p>Hello ${data.name || 'Guest'},</p><p>Attached are your DIVEIndia form packets.</p>`;
+    const attachmentList = packets.map(p => `<li>${p.filename}</li>`).join('');
+    const htmlBody = `<p>Hello ${data.name || 'Guest'},</p><p>Attached are your DIVEIndia forms as separate PDFs in this single email.</p><ul>${attachmentList}</ul>`;
 
+    console.log(`📧 Sending one email with ${packets.length} PDF attachment(s): ${packets.map(p => p.filename).join(', ')}`);
     await sendPackets({ guestEmail: data.email, subject, htmlBody, packets, extraRecipients: [] });
-    res.status(200).send('Forms generated and emailed!');
+    res.status(200).send(`Forms generated and emailed as ${packets.length} separate attachment(s)!`);
   } catch (err) {
     console.error('❌ Submit error:', err);
     res.status(500).send(err?.message || 'Server error processing forms');
@@ -119,6 +246,8 @@ try {
 });
 
 // Serve frontend
+app.get(['/admin', '/admin.html'], requireAdmin, (_req,res)=>res.sendFile(path.join(FRONTEND_DIR,'admin.html')));
+app.use(express.static(PUBLIC_DIR));
 app.use(express.static(FRONTEND_DIR));
 app.get('/', (_req,res)=>res.sendFile(path.join(FRONTEND_DIR,'index.html')));
 

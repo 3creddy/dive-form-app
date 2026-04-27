@@ -1,7 +1,10 @@
 # Memory Index
 
-## Session start — read in this order
-1. [Session guide](session_guide.md) — display this to the user, then ask "what are we building today?"
-2. [Project state](project_state.md) — infra, non-obvious decisions, active bugs
+Repo-local memory lives in this folder. Future agents should read these files before starting meaningful work:
 
-Do NOT read ROADMAP.md or any other docs at session start. Read them only if the chosen task requires it.
+1. `session_guide.md` - working style, git habits, session flow
+2. `project_state.md` - current app context, form rules, known sharp edges
+
+Use this memory as guidance, not as a substitute for current user instructions. If the user says something newer in the active session, the newer instruction wins.
+
+Do not auto-read unrelated docs at session start. Read `README.md`, roadmap files, database migrations, or old snapshots only when the current task requires them.

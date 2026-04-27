@@ -13,12 +13,12 @@ function makeTransport() {
   });
 }
 
-async function sendPackets({ guestEmail, subject, htmlBody, packets, extraRecipients = [] }) {
+async function sendPackets({ guestEmail, subject, htmlBody, packets, extraRecipients = [], includeDefaultRecipients = true }) {
   // Default recipients from .env (comma-separated)
-  const defaultRecipients = (process.env.DEFAULT_RECIPIENTS || '')
+  const defaultRecipients = includeDefaultRecipients ? (process.env.DEFAULT_RECIPIENTS || '')
     .split(',')
     .map(s => s.trim())
-    .filter(Boolean);
+    .filter(Boolean) : [];
 
   // TO = guest email + default recipients
   const toList = [...(guestEmail ? [guestEmail] : []), ...defaultRecipients];

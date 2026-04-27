@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>DIVEIndia Forms Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{--fg:#121212;--muted:#666;--line:#d9d9d9;--bg:#fff;--soft:#f7f8f9;--accent:#007a5a;--navy:#0b1324;--navy-700:#101b31;--border:#23314f;--text:#eef4ff}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--fg);background:var(--bg)}
+    header{position:sticky;top:0;z-index:2;background:#fff;border-bottom:1px solid var(--line);padding:12px 16px}
+    main{max-width:900px;margin:0 auto;padding:16px}
+    h1{font-size:20px;margin:0}
+    fieldset{border:1px solid var(--line);border-radius:8px;padding:16px;margin:16px 0}
+    legend{padding:0 8px;font-weight:700}
+    label{display:block;margin:6px 0 4px}
+    select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .matrix{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+    .choice{border:1px solid var(--line);border-radius:8px;padding:10px;background:#fff}
+    .choice label{display:flex;gap:8px;align-items:center;margin:0;font-weight:700}
+    .choice small{display:block;color:var(--muted);margin-top:4px}
+    .tool-row{display:flex;gap:12px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:8px;background:var(--soft);padding:12px;margin-top:10px}
+    .placeholder-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px}
+    .placeholder-card{border:1px dashed var(--line);border-radius:8px;background:#fafafa;padding:12px;color:#333}
+    .placeholder-card h3{font-size:15px;margin:0 0 8px}
+    .placeholder-card ul{margin:8px 0 0;padding-left:18px;color:var(--muted)}
+    .badge{display:inline-block;border:1px solid #e8d391;background:#fff8d7;color:#7a5a00;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:700}
+    .admin-list{display:grid;grid-template-columns:minmax(280px,1fr) minmax(320px,1fr);gap:12px}
+    .toolbar{display:flex;gap:8px;align-items:center;margin:0 0 10px}
+    .toolbar input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit}
+    .sub-table{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px}
+    .sub-table th,.sub-table td{text-align:left;border-bottom:1px solid var(--line);padding:8px;vertical-align:top}
+    .sub-table th{background:var(--soft);font-size:12px}
+    .sub-table tr{cursor:pointer}
+    .sub-table tr.active{background:#eef7f2}
+    .detail-panel{border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff;min-height:260px}
+    .detail-grid{display:grid;grid-template-columns:130px 1fr;gap:6px;font-size:13px}
+    .detail-grid dt{color:var(--muted)}
+    .detail-grid dd{margin:0}
+    .result-box{border:1px solid var(--line);border-radius:8px;background:var(--soft);padding:10px;margin-top:10px;font-size:13px}
+    .download-links{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+    @media (max-width:900px){.admin-list{grid-template-columns:1fr}}
+    .summary{border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:12px;margin-top:12px;color:#333}
+    .pill{display:inline-block;background:#eef;border:1px solid #dde;border-radius:999px;padding:4px 10px;margin:4px 4px 0 0;font-size:12px;color:#334}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+    .tabs{display:flex;gap:8px;border-bottom:1px solid var(--line);margin-bottom:16px}
+    .tab-btn{background:#fff;color:#111;border:1px solid var(--line);border-bottom:none;border-radius:8px 8px 0 0;padding:10px 14px}
+    .tab-btn.active{background:#111;color:#fff;border-color:#111}
+    .admin-tab{display:none}
+    .admin-tab.active{display:block}
+    button,a.button{appearance:none;border:1px solid #111;background:#111;color:#fff;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;text-decoration:none}
+    button.secondary,a.secondary{background:#fff;color:#111;border-color:var(--line)}
+    @media (max-width:720px){.row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<header>
+  <h1>DIVEIndia Forms Admin</h1>
+</header>
+
+<main>
+  <nav class="tabs" aria-label="Admin sections">
+    <button class="tab-btn active" type="button" data-tab="setup">Setup</button>
+    <button class="tab-btn" type="button" data-tab="submissions">Submissions</button>
+    <button class="tab-btn" type="button" data-tab="roadmap">Roadmap</button>
+  </nav>
+
+  <section id="tab-setup" class="admin-tab active">
+    <fieldset>
+      <legend>Workflow</legend>
+      <div class="row">
+        <div>
+          <label for="diverType">Diver Type</label>
+          <select id="diverType">
+            <option value="course_guest">Course guest / student</option>
+            <option value="certified_fun_diver">Certified fun diver</option>
+            <option value="course_guest_fun_diving">Course guest also fun diving</option>
+          </select>
+        </div>
+        <div>
+          <label for="activityType">Activity Type</label>
+          <select id="activityType">
+            <option value="course">Course / training</option>
+            <option value="fun_dive">Fun diving</option>
+            <option value="course_and_fun_dive">Course + fun diving</option>
+          </select>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>PDF Outputs</legend>
+      <div class="matrix" id="formMatrix">
+        <div class="choice">
+          <label><input type="checkbox" name="selectedForms" value="medical" checked disabled> Medical</label>
+          <small>Always included.</small>
+        </div>
+        <div class="choice">
+          <label><input type="checkbox" name="selectedForms" value="rdc"> RDC</label>
+          <small>Course guests and students.</small>
+        </div>
+        <div class="choice">
+          <label><input type="checkbox" name="selectedForms" value="waiver"> Waiver</label>
+          <small>Course assumption of risk and release.</small>
+        </div>
+        <div class="choice">
+          <label><input type="checkbox" name="selectedForms" value="boat"> Boat waiver</label>
+          <small>Fun dives and post-course fun dives.</small>
+        </div>
+        <div class="choice">
+          <label><input type="checkbox" value="youth" checked disabled> Youth waiver addendum</label>
+          <small>Auto-added for minors only when waiver is selected.</small>
+        </div>
+      </div>
+      <div class="summary" id="summary"></div>
+      <div class="actions">
+        <button type="button" id="saveOpen">Save & Open Guest Form</button>
+        <button type="button" class="secondary" id="saveOnly">Save</button>
+        <button type="button" class="secondary" id="recommended">Use Recommended Outputs</button>
+        <a class="button secondary" href="/">Guest Form</a>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>PDF Mapping Tools</legend>
+      <div class="tool-row">
+        <div>
+          <strong>PDF coordinate mapper</strong><br>
+          <small>Use this when adding or adjusting PDF coordinate overlays.</small>
+        </div>
+        <a class="button secondary" href="/pdf%20coordinate%20mapper/pdf-coordinate-tester-lite.html" target="_blank" rel="noopener">Open mapper</a>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Future Paperwork Pathways</legend>
+      <div class="placeholder-grid">
+        <section class="placeholder-card">
+          <h3>Extended Range (XR) <span class="badge">planned</span></h3>
+          <small>Future student pathway for XR paperwork.</small>
+          <ul>
+            <li>XR waiver PDF not loaded/mapped</li>
+            <li>XR RDC PDF not loaded/mapped</li>
+          </ul>
+        </section>
+        <section class="placeholder-card">
+          <h3>Freediving fun divers <span class="badge">planned</span></h3>
+          <small>Future certified freediver / non-student flow.</small>
+          <ul>
+            <li>Required form set not finalized</li>
+            <li>PDFs not loaded/mapped</li>
+          </ul>
+        </section>
+        <section class="placeholder-card">
+          <h3>Freediving students <span class="badge">planned</span></h3>
+          <small>Future student flow for freediving courses.</small>
+          <ul>
+            <li>Required form set not finalized</li>
+            <li>PDFs not loaded/mapped</li>
+          </ul>
+        </section>
+        <section class="placeholder-card">
+          <h3>Snorkeling fun divers <span class="badge">planned</span></h3>
+          <small>Future snorkeling guest flow.</small>
+          <ul>
+            <li>Required form set not finalized</li>
+            <li>PDFs not loaded/mapped</li>
+          </ul>
+        </section>
+        <section class="placeholder-card">
+          <h3>Snorkeling students <span class="badge">planned</span></h3>
+          <small>Future instructional snorkeling flow.</small>
+          <ul>
+            <li>Required form set not finalized</li>
+            <li>PDFs not loaded/mapped</li>
+          </ul>
+        </section>
+      </div>
+    </fieldset>
+  </section>
+
+  <section id="tab-roadmap" class="admin-tab">
+    <div id="roadmap-root"></div>
+  </section>
+
+  <section id="tab-submissions" class="admin-tab">
+    <fieldset>
+      <legend>Submission Browser</legend>
+      <div class="admin-list">
+        <div>
+          <div class="toolbar">
+            <input id="submissionSearch" placeholder="Search name, email, phone, center">
+            <button type="button" class="secondary" id="submissionRefresh">Refresh</button>
+          </div>
+          <div id="submissionList">Loading submissions...</div>
+        </div>
+        <div class="detail-panel" id="submissionDetail">Select a submission.</div>
+      </div>
+    </fieldset>
+  </section>
+</main>
+
+<script src="/js/admin/roadmap.js"></script>
+<script>
+(function(){
+  const ADMIN_CONFIG_KEY = 'diveFormAdminConfig';
+  const formLabels = {
+    medical: 'Medical',
+    rdc: 'RDC',
+    waiver: 'Waiver',
+    boat: 'Boat waiver'
+  };
+  const activityLabels = {
+    course: 'Course / training',
+    fun_dive: 'Fun diving',
+    course_and_fun_dive: 'Course + fun diving'
+  };
+  const diverLabels = {
+    course_guest: 'Course guest / student',
+    certified_fun_diver: 'Certified fun diver',
+    course_guest_fun_diving: 'Course guest also fun diving'
+  };
+  const defaultActivityByDiver = {
+    course_guest: 'course',
+    certified_fun_diver: 'fun_dive',
+    course_guest_fun_diving: 'course_and_fun_dive'
+  };
+  const recommendedFormsByActivity = {
+    course: ['medical', 'rdc', 'waiver'],
+    fun_dive: ['medical', 'boat'],
+    course_and_fun_dive: ['medical', 'rdc', 'waiver', 'boat']
+  };
+
+  const diverType = document.getElementById('diverType');
+  const activityType = document.getElementById('activityType');
+  const summary = document.getElementById('summary');
+  const submissionState = { rows: [], selectedId: null };
+
+  function escapeHtml(value){
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[ch]));
+  }
+
+  function shortDate(value){
+    if (!value) return '';
+    const d = new Date(value);
+    return isNaN(d) ? String(value) : d.toLocaleString();
+  }
+
+  function selectedForms(){
+    const forms = Array.from(document.querySelectorAll('input[name="selectedForms"]:checked')).map(el => el.value);
+    if (!forms.includes('medical')) forms.unshift('medical');
+    return forms;
+  }
+
+  function setForms(forms){
+    const wanted = new Set(forms);
+    wanted.add('medical');
+    document.querySelectorAll('input[name="selectedForms"]').forEach(el => {
+      el.checked = wanted.has(el.value);
+    });
+    renderSummary();
+  }
+
+  function recommended(){
+    setForms(recommendedFormsByActivity[activityType.value] || recommendedFormsByActivity.course);
+  }
+
+  function currentConfig(){
+    return {
+      diverType: diverType.value,
+      activityType: activityType.value,
+      selectedForms: selectedForms()
+    };
+  }
+
+  function save(){
+    localStorage.setItem(ADMIN_CONFIG_KEY, JSON.stringify(currentConfig()));
+    renderSummary(true);
+  }
+
+  function load(){
+    try {
+      const cfg = JSON.parse(localStorage.getItem(ADMIN_CONFIG_KEY) || 'null');
+      if (cfg) {
+        diverType.value = cfg.diverType || 'course_guest';
+        activityType.value = cfg.activityType || defaultActivityByDiver[diverType.value] || 'course';
+        setForms(Array.isArray(cfg.selectedForms) ? cfg.selectedForms : recommendedFormsByActivity[activityType.value]);
+        return;
+      }
+    } catch (e) {}
+    diverType.value = 'course_guest';
+    activityType.value = 'course';
+    recommended();
+  }
+
+  function renderSummary(saved){
+    const forms = selectedForms();
+    summary.innerHTML = `
+      <strong>${diverLabels[diverType.value]}</strong> | ${activityLabels[activityType.value]}
+      <div>${forms.map(f => `<span class="pill">${formLabels[f] || f}</span>`).join('')}</div>
+      ${forms.includes('waiver') ? '<small>Youth waiver addendum will be included automatically if the guest is under 18.</small>' : ''}
+      ${saved ? '<div><small>Saved.</small></div>' : ''}
+    `;
+  }
+
+  diverType.addEventListener('change', () => {
+    activityType.value = defaultActivityByDiver[diverType.value] || 'course';
+    recommended();
+  });
+  activityType.addEventListener('change', recommended);
+  document.getElementById('formMatrix').addEventListener('change', () => renderSummary());
+  document.getElementById('recommended').addEventListener('click', recommended);
+  document.getElementById('saveOnly').addEventListener('click', save);
+  document.getElementById('saveOpen').addEventListener('click', () => {
+    save();
+    window.location.href = '/';
+  });
+
+  async function loadSubmissions(){
+    const list = document.getElementById('submissionList');
+    const q = document.getElementById('submissionSearch').value.trim();
+    list.textContent = 'Loading submissions...';
+    try {
+      const res = await fetch(`/admin/api/submissions?q=${encodeURIComponent(q)}&limit=100`);
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Could not load submissions');
+      submissionState.rows = json.submissions || [];
+      renderSubmissions();
+    } catch (err) {
+      list.innerHTML = `<div class="result-box">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderSubmissions(){
+    const list = document.getElementById('submissionList');
+    if (!submissionState.rows.length) {
+      list.innerHTML = '<div class="result-box">No submissions found.</div>';
+      return;
+    }
+    list.innerHTML = `
+      <table class="sub-table">
+        <thead><tr><th>Guest</th><th>Contact</th><th>Created</th></tr></thead>
+        <tbody>
+          ${submissionState.rows.map(row => {
+            const name = [row.diver_first, row.diver_last].filter(Boolean).join(' ') || 'Guest';
+            const selected = row.id === submissionState.selectedId ? 'active' : '';
+            return `
+              <tr class="${selected}" data-id="${escapeHtml(row.id)}">
+                <td><strong>${escapeHtml(name)}</strong><br><small>${escapeHtml(row.facility || '')}</small></td>
+                <td>${escapeHtml(row.diver_email || '')}<br><small>${escapeHtml(row.diver_phone || '')}</small></td>
+                <td>${escapeHtml(shortDate(row.created_at))}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+    list.querySelectorAll('tr[data-id]').forEach(row => {
+      row.addEventListener('click', () => selectSubmission(row.dataset.id));
+    });
+  }
+
+  async function selectSubmission(id){
+    submissionState.selectedId = id;
+    renderSubmissions();
+    const detail = document.getElementById('submissionDetail');
+    detail.textContent = 'Loading submission...';
+    try {
+      const res = await fetch(`/admin/api/submissions/${encodeURIComponent(id)}`);
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Could not load submission');
+      renderSubmissionDetail(json.submission, json.regenerationPayload);
+    } catch (err) {
+      detail.innerHTML = `<div class="result-box">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderSubmissionDetail(row, payload){
+    const detail = document.getElementById('submissionDetail');
+    const name = payload.name || payload.fullName || [payload.firstName, payload.lastName].filter(Boolean).join(' ') || 'Guest';
+    const forms = Array.isArray(payload.selectedForms) && payload.selectedForms.length ? payload.selectedForms.join(', ') : 'derived at generation time';
+    detail.innerHTML = `
+      <h3>${escapeHtml(name)}</h3>
+      <dl class="detail-grid">
+        <dt>Submission ID</dt><dd>${escapeHtml(row.id)}</dd>
+        <dt>Created</dt><dd>${escapeHtml(shortDate(row.created_at))}</dd>
+        <dt>Email</dt><dd>${escapeHtml(payload.email || '')}</dd>
+        <dt>Phone</dt><dd>${escapeHtml(payload.phone || '')}</dd>
+        <dt>DOB</dt><dd>${escapeHtml(payload.dob || '')}</dd>
+        <dt>Centers</dt><dd>${escapeHtml((payload.centers || []).join(', '))}</dd>
+        <dt>Activity</dt><dd>${escapeHtml(payload.activityType || '')}</dd>
+        <dt>Forms</dt><dd>${escapeHtml(forms)}</dd>
+        <dt>Medical flag</dt><dd>${row.physician_required ? 'Physician required' : 'No physician flag'}</dd>
+      </dl>
+      <div class="actions">
+        <button type="button" id="generateDownloads">Generate download links</button>
+      </div>
+      <div class="toolbar">
+        <input id="regenEmail" placeholder="Email regenerated PDFs to...">
+        <button type="button" class="secondary" id="sendRegenerated">Email PDFs</button>
+      </div>
+      <div id="regenResult"></div>
+    `;
+    document.getElementById('generateDownloads').addEventListener('click', () => regenerate(row.id, 'save'));
+    document.getElementById('sendRegenerated').addEventListener('click', () => {
+      const email = document.getElementById('regenEmail').value.trim();
+      regenerate(row.id, 'email', email);
+    });
+  }
+
+  async function regenerate(id, action, email){
+    const result = document.getElementById('regenResult');
+    result.innerHTML = '<div class="result-box">Regenerating PDFs...</div>';
+    try {
+      const res = await fetch(`/admin/api/submissions/${encodeURIComponent(id)}/generate`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ action, email })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || 'Regeneration failed');
+      const links = (json.downloads || []).map(url => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url.split('/').pop())}</a>`).join('');
+      result.innerHTML = `
+        <div class="result-box">
+          ${escapeHtml(json.message || 'Done.')}
+          ${links ? `<div class="download-links">${links}</div>` : ''}
+        </div>
+      `;
+    } catch (err) {
+      result.innerHTML = `<div class="result-box">${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  let submissionsLoaded = false;
+  document.getElementById('submissionRefresh').addEventListener('click', loadSubmissions);
+  document.getElementById('submissionSearch').addEventListener('keydown', e => {
+    if (e.key === 'Enter') loadSubmissions();
+  });
+
+  let roadmapLoaded = false;
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.toggle('active', el === btn));
+      document.querySelectorAll('.admin-tab').forEach(el => el.classList.toggle('active', el.id === `tab-${tab}`));
+      if (tab === 'roadmap' && !roadmapLoaded && window.initRoadmap) {
+        roadmapLoaded = true;
+        window.initRoadmap();
+      }
+      if (tab === 'submissions' && !submissionsLoaded) {
+        submissionsLoaded = true;
+        loadSubmissions();
+      }
+    });
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

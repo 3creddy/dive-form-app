@@ -1,38 +1,44 @@
-## Session structure
+# Session Guide
 
-1. User opens with any greeting
-2. Claude displays this guide, reads project_state.md, asks "what are we building today?"
-3. User picks ONE item from ROADMAP.md
-4. Claude confirms scope in 2–3 lines — nothing else
-5. Build it
-6. User tests → parking lot any bugs/ideas (see below)
-7. Claude runs end-of-session checklist, commits, pushes
-8. Done
+## Working Style
 
-## Parking lot rule
+- Inspect the codebase before changing behavior.
+- Give short progress updates while working, especially before edits.
+- Prefer small, targeted changes that preserve the current working backup form flow.
+- Ask before destructive operations, broad refactors, or irreversible git commands.
+- When the user reports a production/testing issue, treat logs and screenshots as first-class evidence.
+- Keep explanations plain and practical.
 
-When testing reveals a bug or new idea mid-session:
-- User says: "parking lot: [thing]"
-- Claude appends it to ROADMAP.md in one line, under the right section
-- We do not discuss it. We do not pivot. Session scope does not change.
+## Git Habits
 
-If something is urgent enough to block the current task, say so explicitly — otherwise it's a parking lot item.
+- Do not commit or push unless the user explicitly asks.
+- If asked to commit, stage only relevant files and use one clear commit for the completed task.
+- Never revert user changes or unrelated work without explicit approval.
+- Before any commit, run `git status --short` and mention any unrelated dirty files.
 
-## Behavioral rules (always on)
+## Testing Habits
 
-- Auto-push: after every set of file edits → git add (specific files) → git commit → git push origin main. No exceptions.
-- Single commit + single push per session: stage ALL changes together — code files AND doc updates — in one git commit, then one git push. Never split into a code commit and a separate docs commit.
-- No trailing summaries, no emoji, no "great question"
-- No scope creep: don't fix nearby code, add improvements, or refactor things not asked for
-- Confirm before destructive ops: dropping data, force-push, deleting files — always ask first
-- Plain language: explain decisions in plain terms before how they work
+- After code edits, run focused syntax or smoke checks that match the risk.
+- For backend JS changes, at minimum run `node --check` on touched backend files.
+- For PDF-generation changes, smoke-test `buildComponentFormBuffers` when possible.
+- For server route changes, verify the route with `Invoke-WebRequest` or equivalent.
+- If a test cannot be run because of DB, SMTP, network, or environment constraints, say so clearly.
 
-## End-of-session checklist
+## Roadmap and Memory Updates
 
-Before closing any session with code changes:
-1. Check deployment logs — scan for errors
-2. ROADMAP.md — mark completed items [x], add parking lot items
-3. roadmap.json — sync ALL changes from ROADMAP.md
-4. .claude/memory/project_state.md — add session entry (1 paragraph), update active bugs
-5. Stage everything in one go — git add all code + all doc files together
-6. One git commit, one git push. Done.
+- Update repo-local memory only when the user asks for durable preferences/context to be remembered, or when a completed task materially changes project behavior.
+- Roadmap system has two sources that must be kept manually in sync: `ROADMAP.md` for humans and `public/data/roadmap.json` for the admin kanban UI.
+- When marking an item complete, update both `- [x]` in `ROADMAP.md` and `"status": "done"` in `public/data/roadmap.json`.
+- When adding a parking lot or new roadmap item, add it to the appropriate Markdown section and the appropriate JSON layer.
+- The kanban UI never parses `ROADMAP.md`; it only reads `/data/roadmap.json`.
+- If the user says "parking lot: ...", record it only if a roadmap or parking-lot file exists or the user asks you to create one. Do not pivot away from the active task unless the issue blocks it.
+
+## End of Work
+
+When handing off after changes:
+
+- Summarize the behavioral change.
+- List the main files touched.
+- Report checks run and any caveats.
+- If roadmap content changed, confirm `ROADMAP.md` and `public/data/roadmap.json` were both updated.
+- Remind the user to restart `node server.js` when server code changed.

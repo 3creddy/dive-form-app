@@ -1,0 +1,156 @@
+{
+  "layers": [
+    {
+      "id": "l0",
+      "label": "Layer 0 - Keep Current Backup Flow Safe",
+      "color": "#1fbf75",
+      "description": "Protect the working local registration flow and remove operational blockers.",
+      "mvp": true,
+      "items": [
+        {
+          "title": "Separate PDF attachments",
+          "detail": "Generate each selected component form as its own PDF and attach all generated PDFs to one single email.",
+          "status": "done",
+          "priority": "high"
+        },
+        {
+          "title": "Admin workflow setup",
+          "detail": "Add a staff-facing setup screen for diver type, activity type, and PDF outputs.",
+          "status": "done"
+        },
+        {
+          "title": "Server-side form defaults",
+          "detail": "Enforce activity-based output defaults on the backend so stale browser payloads cannot drop required forms.",
+          "status": "done",
+          "priority": "high"
+        },
+        {
+          "title": "Admin password gate",
+          "detail": "Protect the admin setup route with a simple password.",
+          "status": "done"
+        },
+        {
+          "title": "DB failure should not block PDFs",
+          "detail": "Reconcile current code with the intended backup behavior: if Postgres is down, still generate/save/email PDFs and log the DB failure clearly.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Submission smoke-test checklist",
+          "detail": "Create a repeatable manual test checklist for course, fun dive, course plus fun dive, minor, and both-center submissions.",
+          "status": "todo"
+        },
+        {
+          "title": "Server-side validation",
+          "detail": "Add minimal backend validation for required identity fields, centers, DOB, email, signatures, and medical answers.",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "l1",
+      "label": "Layer 1 - Operational Admin Tools",
+      "color": "#4aa3ff",
+      "description": "Give staff visibility and recovery tools during real-world operations.",
+      "items": [
+        {
+          "title": "Roadmap kanban tab",
+          "detail": "Add a roadmap data file and admin kanban renderer for tracking product work.",
+          "status": "done"
+        },
+        {
+          "title": "PDF coordinate mapper link",
+          "detail": "Add an admin link to the existing frontend PDF coordinate mapper utility.",
+          "status": "done"
+        },
+        {
+          "title": "Future pathway placeholders",
+          "detail": "Show planned XR, freediving, and snorkeling paperwork pathways in admin without enabling unmapped forms.",
+          "status": "done"
+        },
+        {
+          "title": "Submission browser",
+          "detail": "Admin view for recent DB submissions with search by name, email, phone, and center.",
+          "status": "done",
+          "priority": "high"
+        },
+        {
+          "title": "Regenerate submission PDFs",
+          "detail": "Allow staff to rerun PDF filling for a selected DB submission, then download admin-protected generated files.",
+          "status": "done",
+          "priority": "high"
+        },
+        {
+          "title": "Resend email action",
+          "detail": "Allow staff to resend regenerated PDFs for a selected submission as one email to a specified address.",
+          "status": "done"
+        },
+        {
+          "title": "Test mode controls",
+          "detail": "Add a visible admin control for test mode/local-save behavior instead of relying on query params or headers.",
+          "status": "todo"
+        },
+        {
+          "title": "Environment health panel",
+          "detail": "Show DB status, SMTP status, forms directory status, and LAN URL in the admin panel.",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "l2",
+      "label": "Layer 2 - Form Coverage and Polish",
+      "color": "#f5a524",
+      "description": "Expand coverage to additional activity pathways and polish PDF completeness.",
+      "items": [
+        {
+          "title": "Extensible form catalog",
+          "detail": "Replace hardcoded form keys/rules with a catalog that can represent scuba, XR, freediving, snorkeling, student, and fun-diver pathways.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "PDF intake and mapping workflow",
+          "detail": "Define where new source PDFs are stored, how they are named, how coordinate maps are created, and how a mapped PDF becomes selectable.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Medical contact fields",
+          "detail": "Finish coordinate mapping for email/phone fields on the medical PDF.",
+          "status": "todo"
+        },
+        {
+          "title": "XR pathway",
+          "detail": "Add Extended Range support, including XR waiver and XR RDC source PDFs, coordinate maps, and activity-to-output rules.",
+          "status": "todo"
+        },
+        {
+          "title": "Freediving fun diver pathway",
+          "detail": "Define, load, map, and route the paperwork needed for certified/non-student freediving guests.",
+          "status": "todo"
+        },
+        {
+          "title": "Freediving student pathway",
+          "detail": "Define, load, map, and route the paperwork needed for freediving students.",
+          "status": "todo"
+        },
+        {
+          "title": "Snorkeling fun diver pathway",
+          "detail": "Define, load, map, and route the paperwork needed for snorkeling guests.",
+          "status": "todo"
+        },
+        {
+          "title": "Snorkeling student pathway",
+          "detail": "Define, load, map, and route the paperwork needed for snorkeling students.",
+          "status": "todo"
+        },
+        {
+          "title": "Center expansion support",
+          "detail": "Make facility names, center codes, and per-center outputs data-driven for future DIVEIndia locations.",
+          "status": "todo"
+        }
+      ]
+    }
+  ]
+}
