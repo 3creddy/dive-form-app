@@ -30,6 +30,27 @@
           "status": "done"
         },
         {
+          "title": "Guest submit lock and spinner",
+          "detail": "While a form is submitting, prevent page interaction and show a centered progress state until PDF/email work completes.",
+          "status": "done"
+        },
+        {
+          "title": "Polished submit success/error modal",
+          "detail": "Replace browser alert popups with an in-page completion state: spinner becomes a green tick on success, and errors show in the same modal.",
+          "status": "done"
+        },
+        {
+          "title": "Mobile signature pad fix",
+          "detail": "Resize signature canvases with device-pixel scaling and touch-aware pointer handling so ink follows the finger on phones.",
+          "status": "done",
+          "priority": "high"
+        },
+        {
+          "title": "Guest form cleanup",
+          "detail": "Remove the admin setup link/status strip and remove the preview JSON from the guest-facing form.",
+          "status": "done"
+        },
+        {
           "title": "DB failure should not block PDFs",
           "detail": "Reconcile current code with the intended backup behavior: if Postgres is down, still generate/save/email PDFs and log the DB failure clearly.",
           "status": "todo",
@@ -37,13 +58,19 @@
         },
         {
           "title": "Submission smoke-test checklist",
-          "detail": "Create a repeatable manual test checklist for course, fun dive, course plus fun dive, minor, and both-center submissions.",
+          "detail": "Create a repeatable manual test checklist for course, fun dive, course plus fun dive, minor, both-center, LAN QR, public QR, and mobile signature submissions.",
           "status": "todo"
         },
         {
           "title": "Server-side validation",
           "detail": "Add minimal backend validation for required identity fields, centers, DOB, email, signatures, and medical answers.",
           "status": "todo"
+        },
+        {
+          "title": "Operator-facing failure recovery",
+          "detail": "Make failed email/DB/PDF states obvious to staff, with clear next steps and enough saved artifacts to recover manually.",
+          "status": "todo",
+          "priority": "high"
         }
       ]
     },
@@ -66,9 +93,20 @@
           "priority": "high"
         },
         {
+          "title": "Offline QR generation",
+          "detail": "Generate QR SVGs locally from the backend so QR display does not depend on an external QR service.",
+          "status": "done"
+        },
+        {
           "title": "Public URL readiness check",
           "detail": "Check configured public/tunnel URL against /healthz and show reachable/error status without replacing LAN fallback.",
           "status": "done"
+        },
+        {
+          "title": "Ngrok launcher support",
+          "detail": "Let Start Dive Forms.bat read PUBLIC_BASE_URL/PUBLIC_TUNNEL_PROVIDER and start an ngrok tunnel through PowerShell when configured.",
+          "status": "done",
+          "priority": "high"
         },
         {
           "title": "Roadmap kanban tab",
@@ -108,18 +146,34 @@
           "status": "done"
         },
         {
+          "title": "Repo-local working memory",
+          "detail": "Add project instructions and memory files so future sessions know the app purpose, form rules, roadmap sync rule, and commit habits.",
+          "status": "done"
+        },
+        {
           "title": "Test mode controls",
           "detail": "Add a visible admin control for test mode/local-save behavior instead of relying on query params or headers.",
           "status": "todo"
         },
         {
           "title": "Environment health panel",
-          "detail": "Show DB status, SMTP status, forms directory status, and LAN URL in the admin panel.",
+          "detail": "Show DB status, SMTP status, forms directory status, dependency status, configured public URL, and active LAN URL in the admin panel.",
           "status": "todo"
         },
         {
-          "title": "Public tunnel integration",
-          "detail": "Choose and wire Cloudflare Tunnel, ngrok, or Tailscale Funnel so the launch page's public URL can become reachable with local-network fallback.",
+          "title": "Launcher process management",
+          "detail": "Detect already-running Node/ngrok processes, avoid duplicate tunnel errors, and give staff a clean restart/stop/reuse path.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Launch QR print/share view",
+          "detail": "Provide a staff-friendly full-screen or printable QR page for guests, with LAN and public options clearly labeled.",
+          "status": "todo"
+        },
+        {
+          "title": "Public tunnel hardening",
+          "detail": "Keep ngrok working now, then decide whether to stay on ngrok or move to Cloudflare Tunnel/Tailscale Funnel for regular operations.",
           "status": "todo",
           "priority": "high"
         }
@@ -144,8 +198,19 @@
           "priority": "high"
         },
         {
+          "title": "Pathway source PDF inventory",
+          "detail": "Create a checklist of missing PDFs for XR, freediving, snorkeling, and any center-specific variants before mapping begins.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
           "title": "Promote pathway workspace to implementation queue",
           "detail": "Convert a ready planned pathway into code tasks for form catalog entries, PDF files, coordinate maps, output rules, and smoke tests.",
+          "status": "todo"
+        },
+        {
+          "title": "Output rule matrix editor",
+          "detail": "Move the diver/activity/form matrix toward data-driven admin configuration while preserving backend safety defaults.",
           "status": "todo"
         },
         {

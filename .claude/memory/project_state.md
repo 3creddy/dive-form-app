@@ -80,7 +80,9 @@ The guest-facing form is `frontend/index.html`, served at `/`.
 
 - It collects participant details, dive center(s), signatures, and medical Q1-Q10.
 - If DOB is under 18, guardian fields/signature are shown and required.
-- It displays only a compact staff setup summary and an admin link.
+- It no longer displays an admin setup link/status strip or preview JSON on the guest-facing page.
+- Submitting the form opens an in-page modal that prevents interaction, shows progress, then turns into a success tick or error message.
+- Signature pads use responsive canvas sizing and device-pixel scaling so touch input tracks correctly on phones.
 
 ## Backend Flow
 
@@ -107,7 +109,7 @@ New submissions store `metadata.fullPayload` so future regeneration can use the 
 
 ## Launch Flow
 
-Windows quick start is `Start Dive Forms.bat` in the repo root. It opens a terminal running `backend/server.js`, waits briefly, then opens `http://localhost:3000/admin`.
+Windows quick start is `Start Dive Forms.bat` in the repo root. It opens a terminal running `backend/server.js`, waits briefly, starts ngrok when configured, then opens `http://localhost:3000/admin`.
 
 Admin Launch tab uses:
 
@@ -115,7 +117,7 @@ Admin Launch tab uses:
 - `/admin/api/qr?data=...` for offline QR SVG generation.
 - `PUBLIC_BASE_URL`, `PUBLIC_TUNNEL_PROVIDER`, and `PUBLIC_TUNNEL_CHECK_TIMEOUT_MS` env vars to show internet/tunnel status.
 
-Local network guest QR should be used by phones on the same WiFi. `localhost` is only useful on the server computer. Public/internet access is not automatic yet; Cloudflare Tunnel, ngrok, or Tailscale Funnel still needs to be chosen and configured. If `PUBLIC_BASE_URL` is set, the backend checks `${PUBLIC_BASE_URL}/healthz` and the Launch tab shows reachable/error status without affecting LAN fallback.
+Local network guest QR should be used by phones on the same WiFi. `localhost` is only useful on the server computer. Public/internet access is additive; LAN remains the fallback when internet is slow or unavailable. Ngrok is currently supported through `PUBLIC_TUNNEL_PROVIDER=ngrok` and `PUBLIC_BASE_URL`. If `PUBLIC_BASE_URL` is set, the backend checks `${PUBLIC_BASE_URL}/healthz` and the Launch tab shows reachable/error status without affecting LAN fallback.
 
 ## Non-Obvious Design Decisions
 
@@ -150,3 +152,9 @@ Added a pathway development workspace backed by `public/data/pathways.json`. Fut
 Added one-click Windows launcher and admin Launch tab with local/LAN QR codes plus a placeholder for future public tunnel URL. Runtime QR generation uses the backend `qrcode` dependency.
 
 Added public URL readiness check for the Launch tab. A configured public URL is checked against `/healthz`, and the UI reports reachable, configured-but-not-reachable, or not configured.
+
+Updated the launcher to support ngrok startup from the batch file. On this Windows setup, ngrok may be available through the Microsoft Store/WindowsApps shim, so the batch file starts it through PowerShell rather than plain `cmd`.
+
+Polished the live guest form for phone testing: removed visible admin setup affordances from the guest page, removed the preview JSON, fixed mobile signature canvas scaling/touch tracking, and replaced browser alert completion with an in-page spinner/success/error modal.
+
+Roadmap was expanded in detail after the day of work. New completed cards include submit UX, mobile signature fix, guest cleanup, offline QR generation, ngrok launcher support, and repo-local memory. New next cards include DB-nonblocking PDF generation, operator-facing failure recovery, launcher process management, launch QR print/share view, public tunnel hardening, pathway source PDF inventory, and output rule matrix editing.
