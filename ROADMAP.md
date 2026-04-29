@@ -2,13 +2,21 @@
 
 This roadmap tracks the local-network backup form utility. The product goal is a staff-operated fallback for slow or unavailable internet registration: collect only essential guest details, fill the correct signed PDFs, store submissions when possible, and email the generated paperwork.
 
-Recent completed work from session 2026-04-27:
+## Completed session 2026-04-27
 
 - The guest workflow now generates separate component PDF attachments and sends all selected forms on one email.
 - Admin can choose diver/activity type, review the output matrix, browse stored submissions, regenerate PDFs, download regenerated files, and resend them to a specified email address.
 - The admin surface now includes a roadmap kanban, pathway planning workspace, PDF coordinate mapper link, and launch dashboard with local/LAN/public QR cards.
 - The Windows launcher can start the backend and, when configured, start an ngrok tunnel while preserving LAN as the offline fallback.
 - The guest form was cleaned up for real use: no visible admin setup link, no preview JSON, mobile signature pads track touch input correctly, and submit now shows an in-page spinner/success/error state instead of a browser alert.
+
+## Completed session 2026-04-29
+
+- **Railway backend deployed** — live at `https://dive-form-app-production.up.railway.app/`. Root `package.json` added for Nixpacks detection; `postinstall` installs backend deps; `railway.json` sets healthcheck. Form template PDFs committed to git via `.gitignore` negation so Railway can serve them.
+- **Railway Postgres connected** — DB pool auto-detects cloud vs local via URL regex and enables SSL (`rejectUnauthorized: false`) for Railway while keeping no-SSL for localhost.
+- **Admin PDF modal viewer** — Two new in-memory streaming endpoints (`/admin/api/submissions/:id/pdfs` and `/admin/api/submissions/:id/pdf/:index`) regenerate filled PDFs on demand without any disk write. Admin panel has a tabbed modal with iframe preview, individual download, and bulk download all.
+- **Ngrok authtoken self-healing** — Token stored in `backend/.env`. `Start Dive Forms.bat` silently reinstalls it via `ngrok config add-authtoken` on every launch, so MSIX updates that wipe `ngrok.yml` no longer break the tunnel.
+- **SMTP blocked on Railway** — Gmail port 587 is ETIMEDOUT from Railway IPs. Added nodemailer timeouts to fail fast (10s/30s). Email bypassed for now via the PDF viewer. Fix (Resend API) is next.
 
 ## Layer 0 - Keep Current Backup Flow Safe
 
@@ -40,6 +48,9 @@ Recent completed work from session 2026-04-27:
 - [x] **Regenerate submission PDFs** - Allow staff to rerun PDF filling for a selected DB submission, then download admin-protected generated files. (done session 2026-04-27)
 - [x] **Resend email action** - Allow staff to resend regenerated PDFs for a selected submission as one email to a specified address. (done session 2026-04-27)
 - [x] **Repo-local working memory** - Add project instructions and memory files so future sessions know the app purpose, form rules, roadmap sync rule, and commit habits. (done session 2026-04-27)
+- [x] **Admin PDF modal viewer** - In-memory PDF streaming endpoints + tabbed modal with iframe preview and individual/bulk download. No disk writes, works on Railway ephemeral FS. (done session 2026-04-29)
+- [x] **Ngrok authtoken self-healing** - Store token in `backend/.env`. Launcher reinstalls it silently on every start so MSIX/system updates can't break the tunnel. (done session 2026-04-29)
+- [ ] **Transactional email provider** - Switch from Gmail SMTP to Resend (HTTP API). Gmail port 587 is ETIMEDOUT from Railway IPs. Resend free tier: 3,000 emails/month. Node SDK replaces nodemailer.
 - [ ] **Test mode controls** - Add a visible admin control for test mode/local-save behavior instead of relying on query params or headers.
 - [ ] **Environment health panel** - Show DB status, SMTP status, forms directory status, dependency status, configured public URL, and active LAN URL in the admin panel.
 - [ ] **Launcher process management** - Detect already-running Node/ngrok processes, avoid duplicate tunnel errors, and give staff a clean restart/stop/reuse path.
@@ -99,8 +110,8 @@ Railway Express backend  ──►  Railway Postgres (submissions)
 
 ### Phase A - Cloud foundation
 
-- [ ] **Railway Postgres provisioning** - Add a Postgres service to the Railway project. Run existing DB migration against it. Swap `DATABASE_URL` in `.env` and verify the backend connects and submissions save correctly.
-- [ ] **Railway backend deploy** - Deploy existing `backend/server.js` to Railway. Verify all routes work at the Railway URL. Set required env vars (SMTP, ADMIN_PASSWORD, DATABASE_URL, etc.).
+- [x] **Railway Postgres provisioning** - Railway Postgres live. DB pool auto-detects SSL via URL regex. Migration run via remote psql. Submissions saving correctly. (done session 2026-04-29)
+- [x] **Railway backend deploy** - Live at `https://dive-form-app-production.up.railway.app/`. Nixpacks build via root `package.json`. All routes verified. (done session 2026-04-29)
 - [ ] **Cloudflare R2 bucket setup** - Create R2 bucket for templates. Generate R2 API key pair. Configure CORS so the admin panel can upload directly. Store credentials in Railway env vars.
 - [ ] **Upload existing templates to R2** - Upload current PDF source files and a JSON export of `coordMap.js` entries to R2 as the initial baseline.
 
@@ -120,22 +131,42 @@ Railway Express backend  ──►  Railway Postgres (submissions)
 
 Goal: any staff member runs the server from their own Android phone. Guests stay on LAN, scan QR, fill the form in their browser. Templates come from R2 cache. Submissions go to Railway with offline queue fallback.
 
-Approach: validate with Termux first, then build a proper APK.
+Approach: validate the concept with Termux (no code changes needed), then build a polished APK once the concept is proven.
 
-### Phase A - Termux proof of concept
+### Why Termux first
 
-- [ ] **Termux setup guide** - Step-by-step install guide for non-technical staff: Termux, Node.js, git clone, `.env` setup, start server.
-- [ ] **Termux startup script** - One-command `start.sh`: pull latest, install deps if needed, start server. Staff type one thing.
-- [ ] **Validate LAN peer-to-peer connectivity** - Test whether phones on dive center WiFi can reach each other. Document hotspot fallback if client isolation blocks it.
-- [ ] **Validate Android background network** - Confirm server stays reachable when operator phone screen locks. Document battery/permission settings required.
+Termux runs a real Linux environment inside an Android app — no root, no custom Android code. You install Node.js, clone the repo, and run `node server.js` exactly as on the laptop. If LAN peer-to-peer works and the server stays alive through a screen lock, the APK work is worthwhile. If either fails, you learn that cheaply before investing in native Android development.
 
-### Phase B - Proper Android APK (after Termux validates the concept)
+### Phase A - Termux proof of concept (no code changes, no new packages)
 
-- [ ] **nodejs-mobile-react-native scaffold** - React Native project with embedded Node.js runtime. Confirm `backend/server.js` starts inside it.
-- [ ] **Android foreground service** - Wrap Node.js server in a foreground service so the OS does not kill it when screen locks. Show persistent notification while running.
-- [ ] **Native operator UI** - Minimal React Native screen: Start/Stop button, LAN QR code, active submission count, queue pending count.
-- [ ] **APK update/distribution path** - Decide how staff get new versions: sideload via WhatsApp/shared drive, Play Store internal track, or similar.
-- [ ] **WiFi hotspot mode fallback** - Document the flow where operator phone creates its own hotspot — fully air-gapped from venue WiFi.
+- [ ] **Termux install and Node.js setup** — Install Termux from F-Droid (not Play Store — Play Store version is outdated). Inside Termux: `pkg update && pkg install nodejs git`. Verify `node --version` shows 20+.
+- [ ] **Clone repo and configure** — `git clone <repo> dive-form-app`. Copy `backend/.env` to the phone (via WhatsApp/shared drive or type it). Run `npm install` inside `backend/`.
+- [ ] **First server start** — `node backend/server.js` from the repo root. Confirm the server log shows the phone's LAN IP and port 3000.
+- [ ] **Guest phone connectivity test** — On a second phone (guest's), open a browser and hit `http://<operator-ip>:3000`. Confirm the form loads and a test submission goes through.
+- [ ] **Screen lock survival test** — Lock the operator phone. On the guest phone, reload the form and submit again. Document whether the server stays alive or dies. If it dies, test `termux-wake-lock` (a Termux utility that requests a CPU wakelock).
+- [ ] **Hotspot fallback test** — Turn on the operator phone's WiFi hotspot. Connect the guest phone to that hotspot. Repeat the form load and submission test. This is the fully air-gapped fallback when venue WiFi blocks phone-to-phone traffic.
+- [ ] **Termux startup script** — Write `start.sh` in repo root: `cd backend && git pull && npm install --omit=dev && node server.js`. Staff run one command. Update this to print the LAN QR URL clearly so staff can show it to guests without opening the admin panel first.
+
+### What to test and document during Termux POC
+
+| Question | Pass criterion | Fallback if fail |
+| --- | --- | --- |
+| Does venue WiFi allow phone-to-phone traffic? | Guest phone loads form at operator LAN IP | Operator phone creates hotspot |
+| Does server survive screen lock? | Submission works 5 min after screen locks | `termux-wake-lock` + partial-wakelock setting |
+| Does `git pull` work inside Termux? | Latest code fetched with no git errors | Manual `.env` copy + skip pull step |
+| Can non-technical staff follow the setup? | Staff member sets up phone without help | Simplify or scripted setup further |
+
+### Phase B - Proper Android APK (after Termux proves concept viable)
+
+The APK embeds a real Node.js runtime using `nodejs-mobile-react-native` — no Termux, no terminal visible to staff. The operator taps Start and gets a QR code. Everything else is background.
+
+- [ ] **nodejs-mobile-react-native scaffold** — React Native project with embedded Node.js engine. Copy `backend/` into the assets bundle. Confirm `server.js` starts inside the app sandbox.
+- [ ] **Android foreground service** — Wrap the Node.js thread in a foreground service with a persistent notification ("DIVEIndia Forms is running"). This tells Android not to kill it when the screen locks or memory is pressured.
+- [ ] **Native operator UI (minimal)** — Single screen: app name + status, Start/Stop button, LAN IP + QR code (generated natively via a React Native QR library), submission count from Railway, queue pending count. No admin panel — admin stays in the browser.
+- [ ] **Hotspot mode toggle** — Button to create a WiFi hotspot programmatically (requires `CHANGE_NETWORK_STATE` permission). When enabled, show "Hotspot mode: guests connect to DIVEIndia-Forms network."
+- [ ] **APK build and sideload** — Build a release APK with `./gradlew assembleRelease`. Distribute via WhatsApp or Google Drive as a shared file. Staff enable "install from unknown sources" once and sideload. No Play Store needed initially.
+- [ ] **OTA update check** — On startup, app hits Railway `/api/version` endpoint. If a newer version is available, shows "Update available — download now" linking to the latest APK on Drive. Staff tap once to download and reinstall.
+- [ ] **iOS staff path (decision point)** — nodejs-mobile supports iOS too. After Android APK is stable, assess whether any staff use iPhones as the operator device. If yes, the same codebase builds an IPA. Deferred until Android is working.
 
 ## Design conversations needed (Layers 3 and 4)
 
@@ -143,9 +174,10 @@ Approach: validate with Termux first, then build a proper APK.
 | --- | --- | --- |
 | Cloud provider | **Resolved 2026-04-29** | Railway (Postgres + hosting) + Cloudflare R2 (storage). No new paid accounts. |
 | Template updates | **Resolved 2026-04-29** | Admin UI uploads to R2. Phone syncs on startup via manifest hash check. |
-| LAN client isolation | Open | Does dive center WiFi block phone-to-phone traffic? Is hotspot mode the fallback or the standard? |
-| APK distribution | Open | Sideload via WhatsApp/shared drive, Play Store internal track, or other? |
-| iOS staff devices | Open | Android-only for operator role, or is an iOS path needed for some staff? |
+| LAN client isolation | **Open — test in Termux POC** | Does dive center WiFi block phone-to-phone traffic? If yes, hotspot mode becomes the default, not the fallback. |
+| APK distribution | **Open** | Sideload via WhatsApp/shared drive is the path of least resistance. Assess Play Store internal track if staff churn is high. |
+| iOS staff devices | **Deferred** | Android-only for operator role until Android APK is proven. Same codebase can build iOS later. |
+| Termux vs APK for ops | **Open — answer after Termux POC** | If Termux is stable enough and staff can manage it, APK may not be needed. APK adds polish but also maintenance burden. |
 
 ## Deferred - not building for now
 

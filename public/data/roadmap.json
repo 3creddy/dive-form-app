@@ -151,6 +151,23 @@
           "status": "done"
         },
         {
+          "title": "Admin PDF modal viewer",
+          "detail": "In-memory PDF streaming endpoints regenerate filled PDFs on demand. Tabbed modal with iframe preview, individual download, and bulk download all. No disk writes — works on Railway ephemeral filesystem.",
+          "status": "done",
+          "priority": "high"
+        },
+        {
+          "title": "Ngrok authtoken self-healing",
+          "detail": "Token stored in backend/.env. Launcher reinstalls it silently on every start via ngrok config add-authtoken so MSIX or system updates can't break the tunnel.",
+          "status": "done"
+        },
+        {
+          "title": "Transactional email provider (Resend)",
+          "detail": "Switch from Gmail SMTP to Resend HTTP API. Gmail port 587 is ETIMEDOUT from Railway IPs. Resend free tier: 3,000 emails/month. Node SDK replaces nodemailer. One API key added to Railway env vars.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
           "title": "Test mode controls",
           "detail": "Add a visible admin control for test mode/local-save behavior instead of relying on query params or headers.",
           "status": "todo"
@@ -259,14 +276,14 @@
       "items": [
         {
           "title": "Railway Postgres provisioning",
-          "detail": "Add Postgres service to Railway project. Run existing DB migration. Swap DATABASE_URL and verify submissions save correctly.",
-          "status": "todo",
+          "detail": "Railway Postgres live. DB pool auto-detects SSL via URL regex (no SSL for localhost, rejectUnauthorized:false for cloud). Migration run via remote psql. Submissions saving correctly.",
+          "status": "done",
           "priority": "high"
         },
         {
           "title": "Railway backend deploy",
-          "detail": "Deploy existing backend/server.js to Railway. Verify all routes work at the Railway URL. Set required env vars.",
-          "status": "todo",
+          "detail": "Live at https://dive-form-app-production.up.railway.app/. Nixpacks build via root package.json with postinstall. Form templates committed to git via .gitignore negation. All routes verified.",
+          "status": "done",
           "priority": "high"
         },
         {
@@ -319,55 +336,83 @@
       "id": "l4",
       "label": "Layer 4 - Android Staff Launcher",
       "color": "#a855f7",
-      "description": "Any staff member runs the server from their own Android phone. Templates from R2 cache. Submissions to Railway with offline queue fallback. Validate with Termux first, then APK.",
+      "description": "Any staff member runs the server from their own Android phone. Guests stay on LAN, scan QR, fill the form. Templates from R2 cache. Submissions to Railway with offline queue fallback. Phase A: Termux POC (no code changes). Phase B: proper APK.",
       "items": [
         {
-          "title": "Termux setup guide",
-          "detail": "Step-by-step guide for non-technical staff: Termux, Node.js, git clone, .env setup, start server.",
+          "title": "[Phase A] Termux install and Node.js setup",
+          "detail": "Install Termux from F-Droid (not Play Store — Play Store version is outdated). Inside Termux: pkg update && pkg install nodejs git. Verify node --version shows 20+.",
           "status": "todo",
           "priority": "high"
         },
         {
-          "title": "Termux startup script",
-          "detail": "One-command start.sh: pull latest, install deps if needed, start server. Staff type one thing.",
+          "title": "[Phase A] Clone repo and configure on phone",
+          "detail": "git clone repo, copy backend/.env to phone (via WhatsApp or type it), run npm install inside backend/. No code changes needed.",
           "status": "todo",
           "priority": "high"
         },
         {
-          "title": "Validate LAN peer-to-peer connectivity",
-          "detail": "Test whether phones on dive center WiFi can reach each other. Document hotspot fallback if client isolation blocks it.",
+          "title": "[Phase A] First server start and LAN IP check",
+          "detail": "node backend/server.js from repo root. Confirm the server log shows the phone LAN IP and port 3000. Open admin panel in phone browser to verify.",
           "status": "todo",
           "priority": "high"
         },
         {
-          "title": "Validate Android background network",
-          "detail": "Confirm server stays reachable when operator phone screen locks. Document battery and permission settings required.",
+          "title": "[Phase A] Guest phone connectivity test",
+          "detail": "On a second phone, open browser at http://<operator-ip>:3000. Confirm form loads and a test submission goes through end to end.",
           "status": "todo",
           "priority": "high"
         },
         {
-          "title": "nodejs-mobile-react-native scaffold",
-          "detail": "React Native project with embedded Node.js runtime. Confirm backend/server.js starts inside it. Phase B after Termux validates concept.",
+          "title": "[Phase A] Screen lock survival test",
+          "detail": "Lock the operator phone. On the guest phone, reload form and submit again. Document whether server survives. If it dies, test termux-wake-lock utility.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "[Phase A] Hotspot fallback test",
+          "detail": "Operator phone creates WiFi hotspot. Guest phone connects to that hotspot. Repeat form load and submit test. This is the fully air-gapped path when venue WiFi blocks phone-to-phone traffic.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "[Phase A] Termux startup script (start.sh)",
+          "detail": "Write start.sh in repo root: cd backend && git pull && npm install --omit=dev && node server.js. Print LAN QR URL clearly so staff can show guests without opening admin. Staff type one command.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "[Phase A] Document Termux setup for staff",
+          "detail": "One-page guide (WhatsApp-shareable): install Termux from F-Droid, run setup commands once, run start.sh daily. Include screenshots. Validate by having a non-technical staff member follow it unaided.",
           "status": "todo"
         },
         {
-          "title": "Android foreground service",
-          "detail": "Wrap Node.js server in a foreground service so OS does not kill it when screen locks. Show persistent notification while running.",
+          "title": "[Phase B] nodejs-mobile-react-native scaffold",
+          "detail": "React Native project with embedded Node.js engine. Copy backend/ into app assets. Confirm server.js starts inside app sandbox without Termux. Phase B — only after Termux POC validates concept.",
           "status": "todo"
         },
         {
-          "title": "Native operator UI",
-          "detail": "Minimal React Native screen: Start/Stop button, LAN QR code, active submission count, queue pending count.",
+          "title": "[Phase B] Android foreground service",
+          "detail": "Wrap Node.js thread in a foreground service with persistent notification so Android does not kill it on screen lock or memory pressure.",
           "status": "todo"
         },
         {
-          "title": "APK update and distribution path",
-          "detail": "Decide how staff get new versions: sideload via WhatsApp/shared drive, Play Store internal track, or similar.",
+          "title": "[Phase B] Native operator UI",
+          "detail": "Single screen: Start/Stop button, LAN IP + QR code (React Native QR library), submission count from Railway, queue pending count. Admin panel stays in browser — app just controls the server.",
           "status": "todo"
         },
         {
-          "title": "WiFi hotspot mode fallback",
-          "detail": "Document the flow where operator phone creates its own hotspot — fully air-gapped from venue WiFi.",
+          "title": "[Phase B] Hotspot mode toggle in app",
+          "detail": "Button to create WiFi hotspot programmatically (CHANGE_NETWORK_STATE permission). When on, show Hotspot mode label so staff know guests need to connect to the DIVEIndia-Forms network.",
+          "status": "todo"
+        },
+        {
+          "title": "[Phase B] APK build and sideload distribution",
+          "detail": "Build release APK with ./gradlew assembleRelease. Distribute via WhatsApp or Google Drive. Staff enable install from unknown sources once and sideload. No Play Store needed initially.",
+          "status": "todo"
+        },
+        {
+          "title": "[Phase B] OTA update check",
+          "detail": "On startup, app hits Railway /api/version. If newer version available, shows Update available linking to latest APK on Drive. Staff tap once to download and reinstall.",
           "status": "todo"
         }
       ]
