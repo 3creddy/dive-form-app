@@ -79,6 +79,74 @@ Recent completed work from session 2026-04-27:
 | Freediving fun/student pathways | Layer 2 | Which SSI freediving forms are required, and are they center-specific or student-specific? |
 | XR pathway | Layer 2 | Are XR waiver and XR RDC enough, or are there extra risk/equipment/instructor forms? |
 
+## Layer 3 - Cloud Infrastructure and Sync
+
+Decided session 2026-04-29: Railway (Postgres + backend hosting) + Cloudflare R2 (template storage). No new paid accounts. Railway $5/month hobby plan covers DB + hosting. R2 free tier (10GB, zero egress) covers templates.
+
+Architecture: phone is a thin local gateway. Cloud is source of truth. Offline = graceful degradation via local cache and submission queue, not a separate mode.
+
+```
+Guest phone (browser)
+       │ scan QR, fill form on LAN
+       ▼
+Operator phone (Node.js, LAN server)
+       │ online: POST to Railway  │ offline: local JSON queue → flush when online
+       ▼
+Railway Express backend  ──►  Railway Postgres (submissions)
+                         ──►  Cloudflare R2 (template PDFs, coordMap JSON)
+                         ──►  Admin panel (any browser, anywhere)
+```
+
+### Phase A - Cloud foundation
+
+- [ ] **Railway Postgres provisioning** - Add a Postgres service to the Railway project. Run existing DB migration against it. Swap `DATABASE_URL` in `.env` and verify the backend connects and submissions save correctly.
+- [ ] **Railway backend deploy** - Deploy existing `backend/server.js` to Railway. Verify all routes work at the Railway URL. Set required env vars (SMTP, ADMIN_PASSWORD, DATABASE_URL, etc.).
+- [ ] **Cloudflare R2 bucket setup** - Create R2 bucket for templates. Generate R2 API key pair. Configure CORS so the admin panel can upload directly. Store credentials in Railway env vars.
+- [ ] **Upload existing templates to R2** - Upload current PDF source files and a JSON export of `coordMap.js` entries to R2 as the initial baseline.
+
+### Phase B - Template management
+
+- [ ] **Template version manifest** - Store a `manifest.json` in R2 listing each template file with a content hash and updated timestamp. Backend serves this at `/admin/api/templates/manifest`.
+- [ ] **Admin template upload UI** - Staff can upload a new PDF or updated coordMap JSON via the admin panel. Files go to R2. Manifest updates automatically. Old version is kept with a timestamp suffix as backup.
+- [ ] **Phone template sync** - On startup, phone fetches manifest from Railway, compares hashes against local cache, downloads only changed files from R2. Uses cached versions if Railway is unreachable.
+
+### Phase C - Offline submission queue
+
+- [ ] **Local submission queue** - When Railway is unreachable, phone saves the full submission payload to a local JSON queue file with a UUID. PDF generation and local save still happen immediately so staff have artifacts.
+- [ ] **Background queue flush** - Phone runs a background interval that checks connectivity and posts queued submissions to Railway. Each item is removed from the queue only after a confirmed 2xx response.
+- [ ] **Queue status in admin** - Launch tab shows number of pending unsynced submissions and a manual "sync now" button.
+
+## Layer 4 - Android Staff Launcher
+
+Goal: any staff member runs the server from their own Android phone. Guests stay on LAN, scan QR, fill the form in their browser. Templates come from R2 cache. Submissions go to Railway with offline queue fallback.
+
+Approach: validate with Termux first, then build a proper APK.
+
+### Phase A - Termux proof of concept
+
+- [ ] **Termux setup guide** - Step-by-step install guide for non-technical staff: Termux, Node.js, git clone, `.env` setup, start server.
+- [ ] **Termux startup script** - One-command `start.sh`: pull latest, install deps if needed, start server. Staff type one thing.
+- [ ] **Validate LAN peer-to-peer connectivity** - Test whether phones on dive center WiFi can reach each other. Document hotspot fallback if client isolation blocks it.
+- [ ] **Validate Android background network** - Confirm server stays reachable when operator phone screen locks. Document battery/permission settings required.
+
+### Phase B - Proper Android APK (after Termux validates the concept)
+
+- [ ] **nodejs-mobile-react-native scaffold** - React Native project with embedded Node.js runtime. Confirm `backend/server.js` starts inside it.
+- [ ] **Android foreground service** - Wrap Node.js server in a foreground service so the OS does not kill it when screen locks. Show persistent notification while running.
+- [ ] **Native operator UI** - Minimal React Native screen: Start/Stop button, LAN QR code, active submission count, queue pending count.
+- [ ] **APK update/distribution path** - Decide how staff get new versions: sideload via WhatsApp/shared drive, Play Store internal track, or similar.
+- [ ] **WiFi hotspot mode fallback** - Document the flow where operator phone creates its own hotspot — fully air-gapped from venue WiFi.
+
+## Design conversations needed (Layers 3 and 4)
+
+| Item | Status | Key questions |
+| --- | --- | --- |
+| Cloud provider | **Resolved 2026-04-29** | Railway (Postgres + hosting) + Cloudflare R2 (storage). No new paid accounts. |
+| Template updates | **Resolved 2026-04-29** | Admin UI uploads to R2. Phone syncs on startup via manifest hash check. |
+| LAN client isolation | Open | Does dive center WiFi block phone-to-phone traffic? Is hotspot mode the fallback or the standard? |
+| APK distribution | Open | Sideload via WhatsApp/shared drive, Play Store internal track, or other? |
+| iOS staff devices | Open | Android-only for operator role, or is an iOS path needed for some staff? |
+
 ## Deferred - not building for now
 
 | Item | Why deferred |

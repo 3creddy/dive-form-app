@@ -250,5 +250,127 @@
         }
       ]
     }
+    ,
+    {
+      "id": "l3",
+      "label": "Layer 3 - Cloud Infrastructure and Sync",
+      "color": "#0ea5e9",
+      "description": "Railway (Postgres + hosting) + Cloudflare R2 (templates). Phone is a thin local gateway. Cloud is source of truth. Offline = local cache + submission queue, not a separate mode.",
+      "items": [
+        {
+          "title": "Railway Postgres provisioning",
+          "detail": "Add Postgres service to Railway project. Run existing DB migration. Swap DATABASE_URL and verify submissions save correctly.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Railway backend deploy",
+          "detail": "Deploy existing backend/server.js to Railway. Verify all routes work at the Railway URL. Set required env vars.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Cloudflare R2 bucket setup",
+          "detail": "Create R2 bucket for templates. Generate API key pair. Configure CORS for admin uploads. Store credentials in Railway env vars.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Upload existing templates to R2",
+          "detail": "Upload current PDF source files and a JSON export of coordMap entries to R2 as the initial baseline.",
+          "status": "todo"
+        },
+        {
+          "title": "Template version manifest",
+          "detail": "Store a manifest.json in R2 listing each template with a content hash and timestamp. Backend serves it at /admin/api/templates/manifest.",
+          "status": "todo"
+        },
+        {
+          "title": "Admin template upload UI",
+          "detail": "Staff upload new PDFs or coordMap JSON via admin panel. Files go to R2. Manifest updates automatically. Old version kept with timestamp suffix.",
+          "status": "todo"
+        },
+        {
+          "title": "Phone template sync",
+          "detail": "On startup, phone fetches manifest, compares hashes against local cache, downloads only changed files. Uses cache if Railway is unreachable.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Local submission queue",
+          "detail": "When Railway is unreachable, phone saves full submission payload to local JSON queue with UUID. PDF generation still happens immediately.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Background queue flush",
+          "detail": "Phone runs background interval checking connectivity and posting queued submissions to Railway. Item removed from queue only after confirmed 2xx response.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Queue status in admin",
+          "detail": "Launch tab shows number of pending unsynced submissions and a manual sync now button.",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "l4",
+      "label": "Layer 4 - Android Staff Launcher",
+      "color": "#a855f7",
+      "description": "Any staff member runs the server from their own Android phone. Templates from R2 cache. Submissions to Railway with offline queue fallback. Validate with Termux first, then APK.",
+      "items": [
+        {
+          "title": "Termux setup guide",
+          "detail": "Step-by-step guide for non-technical staff: Termux, Node.js, git clone, .env setup, start server.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Termux startup script",
+          "detail": "One-command start.sh: pull latest, install deps if needed, start server. Staff type one thing.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Validate LAN peer-to-peer connectivity",
+          "detail": "Test whether phones on dive center WiFi can reach each other. Document hotspot fallback if client isolation blocks it.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "Validate Android background network",
+          "detail": "Confirm server stays reachable when operator phone screen locks. Document battery and permission settings required.",
+          "status": "todo",
+          "priority": "high"
+        },
+        {
+          "title": "nodejs-mobile-react-native scaffold",
+          "detail": "React Native project with embedded Node.js runtime. Confirm backend/server.js starts inside it. Phase B after Termux validates concept.",
+          "status": "todo"
+        },
+        {
+          "title": "Android foreground service",
+          "detail": "Wrap Node.js server in a foreground service so OS does not kill it when screen locks. Show persistent notification while running.",
+          "status": "todo"
+        },
+        {
+          "title": "Native operator UI",
+          "detail": "Minimal React Native screen: Start/Stop button, LAN QR code, active submission count, queue pending count.",
+          "status": "todo"
+        },
+        {
+          "title": "APK update and distribution path",
+          "detail": "Decide how staff get new versions: sideload via WhatsApp/shared drive, Play Store internal track, or similar.",
+          "status": "todo"
+        },
+        {
+          "title": "WiFi hotspot mode fallback",
+          "detail": "Document the flow where operator phone creates its own hotspot — fully air-gapped from venue WiFi.",
+          "status": "todo"
+        }
+      ]
+    }
   ]
 }
