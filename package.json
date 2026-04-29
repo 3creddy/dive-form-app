@@ -1,0 +1,13 @@
+{
+  "name": "dive-form-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DIVEIndia local-network backup form utility",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "postinstall": "cd backend && npm install",
+    "start": "cd backend && node server.js"
+  }
+}
