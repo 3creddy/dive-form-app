@@ -13,3 +13,6 @@ Thumbs.db
 *.zip
 dist/
 build/
+
+# but DO track source form templates (they need to ship with the app)
+!forms/*.pdf
