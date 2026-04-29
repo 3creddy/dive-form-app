@@ -203,6 +203,45 @@ app.get('/admin/api/submissions/:id', requireAdmin, async (req, res) => {
   }
 });
 
+app.get('/admin/api/submissions/:id/pdfs', requireAdmin, async (req, res) => {
+  try {
+    const row = await getSubmission(req.params.id);
+    if (!row) return res.status(404).json({ ok: false, error: 'Submission not found' });
+    const payload = rowToSubmissionPayload(row);
+    payload.selectedForms = normalizeSelectedForms(payload);
+    const packets = await buildComponentFormBuffers(payload);
+    res.json({
+      ok: true,
+      pdfs: packets.map((p, i) => ({ index: i, filename: p.filename || `form-${i}.pdf` }))
+    });
+  } catch (err) {
+    console.error('Admin pdfs list error:', err);
+    res.status(500).json({ ok: false, error: err.message || 'Failed to list PDFs' });
+  }
+});
+
+app.get('/admin/api/submissions/:id/pdf/:index', requireAdmin, async (req, res) => {
+  try {
+    const idx = Number(req.params.index);
+    if (!Number.isInteger(idx) || idx < 0) return res.status(400).send('Bad index');
+    const row = await getSubmission(req.params.id);
+    if (!row) return res.status(404).send('Submission not found');
+    const payload = rowToSubmissionPayload(row);
+    payload.selectedForms = normalizeSelectedForms(payload);
+    const packets = await buildComponentFormBuffers(payload);
+    if (idx >= packets.length) return res.status(404).send('PDF index out of range');
+    const p = packets[idx];
+    const disposition = req.query.download === '1' ? 'attachment' : 'inline';
+    const filename = (p.filename || `form-${idx}.pdf`).replace(/"/g, '');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
+    res.send(Buffer.from(p.bytes || p.buffer));
+  } catch (err) {
+    console.error('Admin pdf stream error:', err);
+    res.status(500).send(err.message || 'Failed to stream PDF');
+  }
+});
+
 app.get('/admin/api/generated/:file', requireAdmin, (req, res) => {
   const file = req.params.file;
   const full = path.join(SUB_DIR, file);
